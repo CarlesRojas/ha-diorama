@@ -8,6 +8,10 @@ export const ROOM_GAP_M = 0
 // Height of the flat band round the floor slab, between the rounding of its
 // top edge and of its bottom one. The slab is this and two roundings thick.
 export const ROOM_SLAB_THICKNESS_M = 0.01
+export const ROOM_SLAB_STEP_MAX_DROP_M = 0.50
+export const ROOM_THICKNESS_MIN_M = 0.01
+export const ROOM_THICKNESS_MAX_M = 1.0
+export const ROOM_THICKNESS_STEP_M = 0.01
 // Rounding of the slab's top and bottom edges where it stands free. Where two
 // floors touch they meet square.
 export const ROOM_SLAB_EDGE_RADIUS_M = 0.07
@@ -16,9 +20,9 @@ export const ROOM_SLAB_EDGE_RADIUS_M = 0.07
 export const ROOM_CORNER_RADIUS_M = ROOM_SLAB_EDGE_RADIUS_M
 // How far a room's floor can be raised or sunk, and the step its slider
 // moves in: enough for platforms, steps and a half level.
-export const ROOM_ELEVATION_MIN_M = -1
-export const ROOM_ELEVATION_MAX_M = 1.5
-export const ROOM_ELEVATION_STEP_M = 0.05
+export const ROOM_ELEVATION_MIN_M = -5
+export const ROOM_ELEVATION_MAX_M = 8
+export const ROOM_ELEVATION_STEP_M = 0.01
 // The sign on the floor that leads into a room open beside the focused one
 // is made of that room's floor, and under the pointer darkens by this much,
 // as if black laid over it to multiply, so it answers without standing out

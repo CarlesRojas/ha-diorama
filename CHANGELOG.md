@@ -11,6 +11,29 @@ moves that section under the new version and uses it as the release notes.
 
 ### Added
 
+- Multi-floor management: create, reorder, rename and assign elevations to floors with drag-and-drop handles and double-click configuration.
+- 2D onion-skin reference mode displaying room outlines of other floors while drawing or editing.
+- Per-room custom floor slab thickness slider (`room.thickness`, 1 cm to 100 cm).
+- Per-floor isolated trace images for blueprint alignment across storeys.
+- Expanded room elevation range (-10 m to +25 m) and stair rise range (up to 8 m, unlocking vertical ceiling clamping).
+- Interactive stairs with lighting support: bind light/switch entities, glow and toggle stairs directly.
+- Direct numeric input on sliders: click any parameter, elevation, thickness, or rotation value to type exact numbers.
+- Free camera orbit angle allowing views from below floor level.
+
+### Changed
+
+- Automatic solid floor step drop is capped at 50 cm; larger vertical gaps keep the slab slim and open.
+- Floor pill reordering automatically synchronizes 3D elevations while preserving relative floor heights.
+
+### Fixed
+
+- Item drag-and-drop in 2D editor strictly scoped to active floor rooms, preventing items from jumping to onion-skin rooms on other floors.
+- Room polygon vertex and edge dragging collision checks scoped to the active floor, enabling rooms on different storeys to overlap freely in 2D space without false invalid collision errors.
+- Between-wall decorations (windows, doors, openings) isolated strictly by floor so items on one floor do not punch openings into walls on another.
+- Floorless rooms strictly resolve to base floor `floor-0` during floor reordering without mutating active floor assignment.
+
+### Added
+
 - A piano in three styles, a desk lamp in two, three more ceiling lights, and a switch to hang the sideboard on the wall at any height.
 - Stairs that climb a full storey or a few steps, including a floating style with only its treads, a railing in steel, glass or oak spindles for the edge of a raised floor, a 3D printer that lights its chamber while it prints, a router, a wall tablet that shows a dashboard, a sim racing cockpit, a driveway gate that opens with its cover, a terrace door whose two leaves both swing open, and a Hue style tilted ring table lamp.
 - Plants, vases, books and other small pieces can stand on a wall shelf, and a plant can stand in for its sensors or Home Assistant plant, wilting and yellowing when its soil runs dry.

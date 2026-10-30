@@ -5,6 +5,8 @@ import { Books, Clock, Curtain, Mirror, Rug } from '#/scene/decor/Furnishings.ts
 import Piano from '#/scene/decor/Piano.tsx'
 import Railing from '#/scene/decor/Railing.tsx'
 import Stairs from '#/scene/decor/Stairs.tsx'
+import { Glow } from '#/scene/decor/LightModel.tsx'
+import type { LightState } from '#/scene/decor/lightMaterials.tsx'
 import { FloorPlant, ShelfPlant, WallPlant } from '#/scene/decor/Plants.tsx'
 import type { ItemState } from '#/scene/decor/state.ts'
 import type { DecorationConfig } from '#/types.ts'
@@ -229,18 +231,30 @@ export default function DecorModel({ kind, item, state }: Props) {
         </group>
       )
     }
-    case 'stairs':
+    case 'stairs': {
+      const w = p('width')
+      const l = p('length')
+      const h = p('height')
       return (
-        <Stairs
-          style={style}
-          w={p('width')}
-          l={p('length')}
-          h={p('height')}
-          reach={p('reach')}
-          flip={p(style === 'quarter' ? 'flip' : 'rail') > 0.5}
-          paint={paint}
-        />
+        <group>
+          <Stairs
+            style={style}
+            w={w}
+            l={l}
+            h={h}
+            reach={p('reach')}
+            flip={p(style === 'quarter' ? 'flip' : 'rail') > 0.5}
+            paint={paint}
+          />
+          <Glow
+            state={state as LightState | null}
+            at={[0, h * 0.45, l * 0.45]}
+            spread={Math.hypot(l, h)}
+            output={1.2}
+          />
+        </group>
       )
+    }
     case 'railing':
       return <Railing style={style} w={p('width')} h={p('height')} paint={paint} glass={c('glass')} />
     case 'piano':

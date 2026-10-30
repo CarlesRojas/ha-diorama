@@ -38,7 +38,7 @@ type Props = {
 // surfaces. Segment counts stay low so the silhouettes read as simple.
 const SEG = 32
 
-function Glow({
+export function Glow({
   state,
   at,
   spread = 0,

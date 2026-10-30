@@ -47,38 +47,53 @@ export function traceCovers(trace: Trace, [x, y]: Point) {
   )
 }
 
-function read(): Trace | null {
+function keyFor(floorId: string = 'floor-0') {
+  return floorId === 'floor-0' ? KEY : `${KEY}:${floorId}`
+}
+
+function read(floorId: string = 'floor-0'): Trace | null {
   try {
-    const old = localStorage.getItem(OLD_KEY)
-    if (old !== null) {
-      if (localStorage.getItem(KEY) === null) localStorage.setItem(KEY, old)
-      localStorage.removeItem(OLD_KEY)
+    const k = keyFor(floorId)
+    if (floorId === 'floor-0') {
+      const old = localStorage.getItem(OLD_KEY)
+      if (old !== null) {
+        if (localStorage.getItem(KEY) === null) localStorage.setItem(KEY, old)
+        localStorage.removeItem(OLD_KEY)
+      }
     }
-    const stored = localStorage.getItem(KEY)
+    const stored = localStorage.getItem(k)
     return stored ? (JSON.parse(stored) as Trace) : null
   } catch {
     return null
   }
 }
 
-function write(trace: Trace | null) {
+function write(trace: Trace | null, floorId: string = 'floor-0') {
   try {
-    if (trace) localStorage.setItem(KEY, JSON.stringify(trace))
-    else localStorage.removeItem(KEY)
+    const k = keyFor(floorId)
+    if (trace) localStorage.setItem(k, JSON.stringify(trace))
+    else localStorage.removeItem(k)
   } catch {
     // Too big for the browser's storage, or storage is off: the picture
     // stays for as long as the editor is open.
   }
 }
 
-export function useTrace(): [Trace | null, (trace: Trace | null) => void] {
-  const [trace, setTrace] = useState<Trace | null>(read)
+export function useTrace(floorId: string = 'floor-0'): [Trace | null, (trace: Trace | null) => void] {
+  const [trace, setTrace] = useState<Trace | null>(() => read(floorId))
   const timer = useRef(0)
+
+  // Reload trace when floor changes
+  useState(() => {
+    setTrace(read(floorId))
+  })
+
   const set = useCallback((next: Trace | null) => {
     setTrace(next)
     window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(() => write(next), STORE_MS)
-  }, [])
+    timer.current = window.setTimeout(() => write(next, floorId), STORE_MS)
+  }, [floorId])
+
   return [trace, set]
 }
 

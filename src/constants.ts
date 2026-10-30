@@ -37,7 +37,7 @@ export const CAMERA_NARROW_PX = 600
 export const CAMERA_MIN_DISTANCE_M = 2
 export const CAMERA_MAX_DISTANCE_M = 60
 export const CAMERA_MIN_POLAR_DEG = 6
-export const CAMERA_MAX_POLAR_DEG = 82
+export const CAMERA_MAX_POLAR_DEG = 115
 export const CAMERA_NEAR_M = 0.1
 export const CAMERA_FAR_M = 200
 // How long the camera takes to travel to a saved view, and how much longer

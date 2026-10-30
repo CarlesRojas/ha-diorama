@@ -1,6 +1,6 @@
 import { Select } from '#/components/ui/select.tsx'
 import { decorationKind } from '#/decoration/catalog.ts'
-import { ResetButton, SelectedHeader, Slider, Switch } from '#/editor/panel.tsx'
+import { EditableValue, ResetButton, SelectedHeader, Slider, Switch } from '#/editor/panel.tsx'
 import { neighboursOf } from '#/geometry/passages.ts'
 import {
   EDITOR_TINT_COLOR,
@@ -9,6 +9,10 @@ import {
   ROOM_ELEVATION_MAX_M,
   ROOM_ELEVATION_MIN_M,
   ROOM_ELEVATION_STEP_M,
+  ROOM_SLAB_THICKNESS_M,
+  ROOM_THICKNESS_MAX_M,
+  ROOM_THICKNESS_MIN_M,
+  ROOM_THICKNESS_STEP_M,
 } from '#/theme.ts'
 import type { Area, DecorationConfig, HomeAssistant, RoomConfig } from '#/types.ts'
 import { entityName } from '#/devices/catalog.ts'
@@ -29,6 +33,9 @@ type Props = {
   onFloor: (roomId: string, floor: RoomConfig['floor']) => void
   // Raises or lowers the room's floor, in meters, `undefined` for level.
   onElevation: (roomId: string, elevation: number | undefined) => void
+  onThickness?: (roomId: string, thickness: number | undefined) => void
+  floors?: { id: string; name: string; elevation: number }[]
+  onAssignFloor?: (roomId: string, floorId: string) => void
   // The sensor that says someone is in the room, and the filter over its
   // floor while it does.
   hass: HomeAssistant | null
@@ -63,6 +70,9 @@ export default function RoomInfo({
   onAssignArea,
   onFloor,
   onElevation,
+  onThickness,
+  floors,
+  onAssignFloor,
   hass,
   onPresence,
   decorations,
@@ -142,6 +152,17 @@ export default function RoomInfo({
             onBlur={onRenameDone}
           />
         </label>
+        {floors && floors.length > 0 && onAssignFloor && (
+          <label className={cn(row, 'grid-cols-[96px_1fr]')}>
+            Planta
+            <Select
+              aria-label="Planta"
+              value={room.floor_id ?? floors[0].id}
+              options={floors.map(f => ({ value: f.id, label: `${f.name} (${f.elevation >= 0 ? '+' : ''}${f.elevation}m)` }))}
+              onChange={v => onAssignFloor(room.id, v)}
+            />
+          </label>
+        )}
         <label className={cn(row, 'grid-cols-[96px_1fr]')}>
           Area
           <Select
@@ -167,9 +188,37 @@ export default function RoomInfo({
             value={elevation}
             onChange={e => onElevation(room.id, Number(e.target.value) || undefined)}
           />
-          <span className="text-label-2 text-right text-xs tabular-nums">{Math.round(elevation * 100)} cm</span>
+          <EditableValue
+            value={Math.round(elevation * 100)}
+            display={`${Math.round(elevation * 100)} cm`}
+            onChange={val => onElevation(room.id, val === 0 ? undefined : val / 100)}
+            className="text-label-2 text-right text-xs tabular-nums"
+          />
           <ResetButton label="Elevation" changed={elevation !== 0} onReset={() => onElevation(room.id, undefined)} />
         </label>
+        {onThickness && (
+          <label className={cn(row, 'grid-cols-[96px_1fr_56px_24px]')}>
+            Thickness
+            <Slider
+              min={ROOM_THICKNESS_MIN_M}
+              max={ROOM_THICKNESS_MAX_M}
+              step={ROOM_THICKNESS_STEP_M}
+              value={room.thickness ?? ROOM_SLAB_THICKNESS_M}
+              onChange={e => onThickness(room.id, Number(e.target.value) || undefined)}
+            />
+            <EditableValue
+              value={Math.round((room.thickness ?? ROOM_SLAB_THICKNESS_M) * 100)}
+              display={`${Math.round((room.thickness ?? ROOM_SLAB_THICKNESS_M) * 100)} cm`}
+              onChange={val => onThickness(room.id, val === Math.round(ROOM_SLAB_THICKNESS_M * 100) ? undefined : val / 100)}
+              className="text-label-2 text-right text-xs tabular-nums"
+            />
+            <ResetButton
+              label="Thickness"
+              changed={room.thickness !== undefined && room.thickness !== ROOM_SLAB_THICKNESS_M}
+              onReset={() => onThickness(room.id, undefined)}
+            />
+          </label>
+        )}
       </div>
       <div className={group}>
         <label className={cn(row, 'grid-cols-[96px_1fr_24px]')}>

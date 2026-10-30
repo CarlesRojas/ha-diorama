@@ -186,7 +186,7 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
   // A piece in a wall between two rooms stands with the higher floor, so a
   // door up to a raised room reaches its floor.
   const floorUnder = (room: string, between: Between | null) =>
-    Math.max(...(between?.rooms ?? [room]).map(id => elevationOf(roomById.get(id))))
+    Math.max(...(between?.rooms ?? [room]).map(id => elevationOf(roomById.get(id), config.floors)))
 
   // The guesses clicks have made, by entity, and the timers that end them.
   // A guess that runs out has to be drawn again to fall back, and nothing
