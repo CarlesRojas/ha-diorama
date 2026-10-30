@@ -58,6 +58,10 @@ export type EntityInfo = {
   domain: string
   // Area the entity belongs to in Home Assistant, directly or through its device.
   area_id: string | null
+  area_name: string | null
+  // Device the entity belongs to in Home Assistant, if any.
+  device_id: string | null
+  device_name: string | null
 }
 
 export function entityName(hass: HomeAssistant, entityId: string) {
@@ -81,6 +85,21 @@ export function entityArea(hass: HomeAssistant, entityId: string): string | null
   return entry.area_id ?? (entry.device_id ? (hass.devices?.[entry.device_id]?.area_id ?? null) : null)
 }
 
+export function areaName(hass: HomeAssistant, areaId: string | null): string | null {
+  if (!areaId) return null
+  return hass.areas?.[areaId]?.name ?? null
+}
+
+export function deviceName(hass: HomeAssistant, entityId: string, deviceId: string | null): string | null {
+  if (!deviceId) return null
+  const name = hass.devices?.[deviceId]?.name
+  if (!name) return null
+  // If the entity has a friendly name that matches the device, don't show it
+  // again. The device name is already in the list of devices, and the entity
+  // name is already in the list of entities. Only show it if they differ.
+  return hass.states?.[entityId]?.attributes.friendly_name === name ? null : name
+}
+
 // Every entity a decoration item can be bound to, from the entity registry.
 // Areas are not required: Home Assistant does not force one on anything.
 // Hidden entities are in too: Home Assistant hides the lights in a group,
@@ -95,11 +114,15 @@ export function placeableEntities(hass: HomeAssistant): EntityInfo[] {
       const deviceClass = hass.states[entry.entity_id]?.attributes.device_class
       if (typeof deviceClass === 'string' && NOISY_SENSORS.has(deviceClass)) continue
     }
+    const areaId = entityArea(hass, entry.entity_id);
     out.push({
       entity_id: entry.entity_id,
       name: entityName(hass, entry.entity_id),
       domain,
-      area_id: entityArea(hass, entry.entity_id),
+      area_id: areaId,
+      area_name: areaName(hass, areaId),
+      device_id: entry.device_id ?? null,
+      device_name: deviceName(hass, entry.entity_id, entry.device_id ?? null),
     })
   }
   return out.sort((a, b) => a.domain.localeCompare(b.domain) || a.name.localeCompare(b.name))

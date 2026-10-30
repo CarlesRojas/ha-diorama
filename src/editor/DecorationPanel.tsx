@@ -530,6 +530,8 @@ export default function DecorationPanel({
                     value: e.entity_id,
                     label: e.name,
                     keywords: e.entity_id,
+                    area: e.area_name ?? undefined,
+                    device: e.device_name ?? undefined,
                     badge: hass ? (
                       <Signals signals={deviceSignals(hass, e.entity_id)} size="sm" accent={accent} />
                     ) : undefined,
