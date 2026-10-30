@@ -2636,6 +2636,10 @@ export const DECORATION_KINDS: DecorationKind[] = [
         colors: { frame: SCANDI.offWhite, panel: SCANDI.offWhite, handle: '#2b2c2d', glass: SCANDI.mist },
         materials: { frame: 'matte', panel: 'matte', handle: 'metal', glass: 'ceramic' },
       },
+      {
+        id: 'frame',
+        label: 'Frame Only'
+      }
     ],
   ),
   kind(
