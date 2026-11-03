@@ -92,12 +92,15 @@ export function areaName(hass: HomeAssistant, areaId: string | null): string | n
 
 export function deviceName(hass: HomeAssistant, entityId: string, deviceId: string | null): string | null {
   if (!deviceId) return null
-  const name = hass.devices?.[deviceId]?.name
+  const name = hass.devices?.[deviceId]?.name_by_user ?? hass.devices?.[deviceId]?.name
   if (!name) return null
   // If the entity has a friendly name that matches the device, don't show it
   // again. The device name is already in the list of devices, and the entity
   // name is already in the list of entities. Only show it if they differ.
-  return hass.states?.[entityId]?.attributes.friendly_name === name ? null : name
+  if (!hass.states?.[entityId]) return name
+  if (hass.states?.[entityId]?.attributes.friendly_name === name) return null
+  if (hass.entities?.[entityId]?.name === name) return null
+  return name
 }
 
 // Every entity a decoration item can be bound to, from the entity registry.
