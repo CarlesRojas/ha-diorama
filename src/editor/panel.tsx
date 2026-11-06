@@ -4,7 +4,7 @@ import { cn } from '#/lib/utils.ts'
 import type { Signal } from '#/signals.ts'
 import { faRotateLeft, faXmark } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { useRef, type CSSProperties, type InputHTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type InputHTMLAttributes, type ReactNode } from 'react'
 
 // Pieces both sidebars share.
 
@@ -170,6 +170,96 @@ export function Slider({
 // piece or a room has, and only shows once the value has left its default.
 // At the default it still holds its place, so each row lines up with the
 // next.
+
+// Editable number label that displays formatted text and turns into a direct text input on click
+export function EditableValue({
+  value,
+  display,
+  onChange,
+  className,
+  parse = (raw: string) => {
+    const n = parseFloat(raw.replace(/[^\d.-]/g, ''))
+    return isNaN(n) ? null : n
+  },
+}: {
+  value: number
+  display: string
+  onChange: (val: number) => void
+  className?: string
+  parse?: (raw: string) => number | null
+}) {
+  const [editing, setEditing] = useState(false)
+  const [text, setText] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    }
+  }, [editing])
+
+  const commit = () => {
+    setEditing(false)
+    const parsed = parse(text)
+    if (parsed !== null && !isNaN(parsed)) {
+      onChange(parsed)
+    }
+  }
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        type="text"
+        className={cn(
+          'w-14 rounded bg-fill px-1 py-0.5 text-right text-xs font-mono text-(--primary-text-color) outline outline-1 outline-tint ring-0',
+          className,
+        )}
+        value={text}
+        onChange={e => setText(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            commit()
+          } else if (e.key === 'Escape') {
+            setEditing(false)
+          }
+        }}
+        onBlur={commit}
+        onClick={e => e.stopPropagation()}
+      />
+    )
+  }
+
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      title="Haz clic para escribir el valor numérico exacto"
+      className={cn(
+        'cursor-pointer rounded px-1 py-0.5 hover:bg-fill/50 hover:text-(--primary-text-color) transition-colors',
+        className,
+      )}
+      onClick={e => {
+        e.preventDefault()
+        e.stopPropagation()
+        setText(value.toString())
+        setEditing(true)
+      }}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          setText(value.toString())
+          setEditing(true)
+        }
+      }}
+    >
+      {display}
+    </span>
+  )
+}
+
 export function ResetButton({ label, changed, onReset }: { label: string; changed: boolean; onReset: () => void }) {
   return (
     <button

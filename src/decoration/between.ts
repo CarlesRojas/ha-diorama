@@ -40,8 +40,9 @@ export type Between = { rooms: string[]; front: string; back: string }
 // Null for a piece that has only its own room, which is nearly all of them.
 export function betweenOf(item: DecorationConfig, rooms: RoomConfig[]): Between | null {
   if (!BETWEEN_KINDS.has(item.kind)) return null
+  const itemRoom = rooms.find(r => r.id === item.room)
   const others = rooms
-    .filter(room => room.id !== item.room)
+    .filter(room => room.id !== item.room && (room.floor_id ?? 'floor-0') === (itemRoom?.floor_id ?? 'floor-0'))
     .map(room => ({ id: room.id, distance: distanceToOutline(item.position, room.points) }))
     .filter(room => room.distance <= BETWEEN_REACH_M)
     .sort((a, b) => a.distance - b.distance)

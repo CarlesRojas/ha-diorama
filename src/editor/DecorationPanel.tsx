@@ -19,7 +19,7 @@ import { placeableEntities } from '#/devices/catalog.ts'
 import ModelPreview from '#/editor/ModelPreview.tsx'
 import TrySection from '#/editor/TrySection.tsx'
 import { canTry, type TryState, type TryStates } from '#/editor/tryState.ts'
-import { PreviewHandle, ResetButton, SelectedHeader, Signals, Slider, Sticky, Switch } from '#/editor/panel.tsx'
+import { EditableValue, PreviewHandle, ResetButton, SelectedHeader, Signals, Slider, Sticky, Switch } from '#/editor/panel.tsx'
 import { snapToWall } from '#/editor/walls.ts'
 import { Select } from '#/components/ui/select.tsx'
 import {
@@ -342,10 +342,12 @@ export default function DecorationPanel({
                   value={value}
                   onChange={e => onUpdate(item.id, { params: { ...item.params, [p.id]: Number(e.target.value) } })}
                 />
-                <span className="text-label-2 text-right text-xs tabular-nums">
-                  {/* The parameter says its unit, and means meters when silent. */}
-                  {p.unit === undefined ? `${value.toFixed(2)} m` : `${value}${p.unit}`}
-                </span>
+                <EditableValue
+                  value={value}
+                  display={p.unit === undefined ? `${value.toFixed(2)} m` : `${value}${p.unit}`}
+                  onChange={val => onUpdate(item.id, { params: { ...item.params, [p.id]: val } })}
+                  className="text-label-2 text-right text-xs tabular-nums"
+                />
                 {reset}
               </label>
             )
@@ -360,7 +362,12 @@ export default function DecorationPanel({
               value={item.rotation ?? 0}
               onChange={e => onUpdate(item.id, { rotation: Number(e.target.value) })}
             />
-            <span className="text-label-2 text-right text-xs tabular-nums">{item.rotation ?? 0}°</span>
+            <EditableValue
+              value={item.rotation ?? 0}
+              display={`${item.rotation ?? 0}°`}
+              onChange={val => onUpdate(item.id, { rotation: ((Math.round(val) % 360) + 360) % 360 })}
+              className="text-label-2 text-right text-xs tabular-nums"
+            />
             <ResetButton
               label="Rotation"
               changed={(item.rotation ?? 0) !== defaultRotation}

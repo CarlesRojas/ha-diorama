@@ -74,10 +74,17 @@ export type CameraView = {
   target: [number, number, number]
 }
 
+export type FloorConfig = {
+  id: string
+  name: string
+  elevation: number
+}
+
 export type RoomConfig = {
   id: string
   name?: string
   area_id?: string
+  floor_id?: string
   points: Point[]
   radius?: number
   color?: string
@@ -85,6 +92,7 @@ export type RoomConfig = {
   // negative, in meters: a raised platform, a step or a sunken living room.
   // Everything in the room stands on it.
   elevation?: number
+  thickness?: number
   // A sensor that says someone is in the room. While it does, the floor is
   // seen through a filter of `color`, black by default, laid over it at
   // `strength`, from 0 to 1.
@@ -204,6 +212,7 @@ export type ModelConfig = {
 
 export type CardConfig = {
   type: string
+  floors?: FloorConfig[]
   rooms?: RoomConfig[]
   devices?: DeviceConfig[]
   decorations?: DecorationConfig[]

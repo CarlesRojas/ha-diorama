@@ -94,6 +94,7 @@ const FAMILY_DOMAINS: Record<string, string[]> = {
   climate: ['climate', 'fan', 'humidifier'],
 }
 const KIND_DOMAINS: Record<string, string[]> = {
+  stairs: ['light', 'switch'],
   projector_screen: ['cover'],
   awning: ['cover'],
   louvred_pergola: ['cover'],
@@ -152,7 +153,7 @@ const range = (id: string, d: number, min: number, max: number, step: number) =>
   if (step >= 1) return { min, max }
   const low = Math.max(Math.min(min, d * 0.25), VERTICAL.has(id) ? 0 : 0.05)
   const high = Math.max(max, d * 3)
-  const top = VERTICAL.has(id) ? Math.min(high, CEILING_LIMIT_M) : high
+  const top = VERTICAL.has(id) ? (id === 'height' ? Math.max(high, max) : Math.min(high, CEILING_LIMIT_M)) : high
   return { min: down(low, step), max: up(top, step) }
 }
 

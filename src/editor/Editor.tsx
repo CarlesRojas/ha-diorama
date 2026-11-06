@@ -42,6 +42,7 @@ import {
   EDITOR_SIDEBAR_WIDTH_PX,
 } from '#/constants.ts'
 import type {
+  FloorConfig,
   CardConfig,
   DecorationConfig,
   DeviceConfig,
@@ -85,6 +86,59 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
   // even after the original is gone.
   const [clipboard, setClipboard] = useState<DecorationConfig | null>(null)
   const [tool, setTool] = useState<Tool>('select')
+  const [floors, setFloors] = useState<FloorConfig[]>(
+    config.floors && config.floors.length > 0
+      ? config.floors
+      : [{ id: 'floor-0', name: 'Planta Baja', elevation: 0 }]
+  )
+  const [activeFloorId, setActiveFloorId] = useState<string>(floors[0]?.id ?? 'floor-0')
+
+  const addFloor = () => {
+    const nextNum = floors.length
+    const id = 'floor-' + nextNum
+    const newElevation = (floors[floors.length - 1]?.elevation ?? 0) + 3.0
+    const newFloor: FloorConfig = {
+      id,
+      name: 'Planta ' + nextNum,
+      elevation: Math.round(newElevation * 100) / 100,
+    }
+    const nextFloors = [...floors, newFloor]
+    setFloors(nextFloors)
+    setActiveFloorId(id)
+    setFloors(nextFloors)
+    commit(rooms, devices, decorations, config.models, nextFloors)
+  }
+
+  const reorderFloors = (nextFloors: FloorConfig[]) => {
+    // Collect the sorted elevations from lowest to highest
+    const sortedElevations = [...floors].map(f => f.elevation).sort((a, b) => a - b)
+    // Assign sorted elevations according to the new visual order (left-to-right = bottom-to-top)
+    const withUpdatedElevations = nextFloors.map((floor, index) => ({
+      ...floor,
+      elevation: sortedElevations[index] ?? floor.elevation,
+    }))
+    setFloors(withUpdatedElevations)
+    setFloors(withUpdatedElevations)
+    commit(rooms, devices, decorations, config.models, withUpdatedElevations)
+  }
+
+  const updateFloor = (floorId: string, patch: Partial<FloorConfig>) => {
+    const nextFloors = floors.map(f => (f.id === floorId ? { ...f, ...patch } : f))
+    setFloors(nextFloors)
+    setFloors(nextFloors)
+    commit(rooms, devices, decorations, config.models, nextFloors)
+  }
+
+  const deleteFloor = (floorId: string) => {
+    if (floors.length <= 1) return
+    const nextFloors = floors.filter(f => f.id !== floorId)
+    setFloors(nextFloors)
+    if (activeFloorId === floorId) {
+      setActiveFloorId(nextFloors[0]?.id ?? 'floor-0')
+    }
+    setFloors(nextFloors)
+    commit(rooms, devices, decorations, config.models, nextFloors)
+  }
   const [selection, setSelection] = useState<Selection>({ roomId: null, vertex: null })
   const [draft, setDraft] = useState<Point[]>([])
   const [view, setView] = useState<View | null>(null)
@@ -98,7 +152,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
   // The picture the rooms are traced over. It is selected like anything
   // else on the plan, which is when it can be moved and sized, and it opens
   // selected when it is first chosen.
-  const [trace, setTrace] = useTrace()
+  const [trace, setTrace] = useTrace(activeFloorId)
   const [traceSelected, setTraceSelected] = useState(false)
   const pickTrace = async (file: File) => {
     setTrace(await traceFrom(file, rooms))
@@ -241,27 +295,30 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     devices: DeviceConfig[]
     decorations: DecorationConfig[]
     models: Models
+    floors?: FloorConfig[]
   }>({
     rooms: config.rooms ?? [],
     devices: config.devices ?? [],
     decorations: config.decorations ?? [],
     models: config.models,
+    floors: config.floors,
   })
   const [confirmDiscard, setConfirmDiscard] = useState(false)
-  const serialize = (r: RoomConfig[], d: DeviceConfig[], x: DecorationConfig[], m: Models) =>
-    JSON.stringify({ rooms: r, devices: d, decorations: x, models: modelSummary(m) })
+  const serialize = (r: RoomConfig[], d: DeviceConfig[], x: DecorationConfig[], m: Models, fl?: FloorConfig[]) =>
+    JSON.stringify({ rooms: r, devices: d, decorations: x, models: modelSummary(m), floors: fl })
   const lastEmitted = useRef<string>(
-    serialize(config.rooms ?? [], config.devices ?? [], config.decorations ?? [], config.models),
+    serialize(config.rooms ?? [], config.devices ?? [], config.decorations ?? [], config.models, config.floors),
   )
 
   // Pick up edits made outside, for example in the YAML editor.
   useEffect(() => {
-    const incoming = serialize(config.rooms ?? [], config.devices ?? [], config.decorations ?? [], config.models)
+    const incoming = serialize(config.rooms ?? [], config.devices ?? [], config.decorations ?? [], config.models, config.floors)
     if (incoming === lastEmitted.current) return
     lastEmitted.current = incoming
     setRooms(config.rooms ?? [])
     setDevices(config.devices ?? [])
     setDecorations(config.decorations ?? [])
+    if (config.floors) setFloors(config.floors)
   }, [config])
 
   // A device is only ever a binding: one with nothing standing in for it is
@@ -283,12 +340,13 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     devicesIn: DeviceConfig[] = devices,
     nextDecorations: DecorationConfig[] = decorations,
     nextModels: Models = config.models,
+    nextFloors: FloorConfig[] = floors,
   ) => {
     const nextDevices = settle(devicesIn, nextDecorations)
     setRooms(nextRooms)
     setDevices(nextDevices)
     setDecorations(nextDecorations)
-    const serialized = serialize(nextRooms, nextDevices, nextDecorations, nextModels)
+    const serialized = serialize(nextRooms, nextDevices, nextDecorations, nextModels, nextFloors)
     if (serialized === lastEmitted.current) return
     lastEmitted.current = serialized
     const next: CardConfig = { ...config, rooms: nextRooms }
@@ -298,6 +356,8 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     else delete next.decorations
     if (nextModels && Object.keys(nextModels).length > 0) next.models = nextModels
     else delete next.models
+    if (nextFloors && nextFloors.length > 0) next.floors = nextFloors
+    else delete next.floors
     onChange(next)
   }
 
@@ -635,6 +695,16 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       }),
     )
 
+  // Sets custom slab thickness for a room's floor, or resets to standard.
+  const setThickness = (roomId: string, thickness: number | undefined) =>
+    commit(
+      rooms.map(r => {
+        if (r.id !== roomId) return r
+        const { thickness: _dropped, ...rest } = r
+        return thickness ? { ...rest, thickness } : rest
+      }),
+    )
+
   // Sets the sensor that says someone is in a room and the filter laid over
   // its floor while it does, or takes it away.
   const setPresence = (roomId: string, presence: RoomConfig['presence']) =>
@@ -736,7 +806,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     // the browser has shown it, and the editor can take its time.
     requestAnimationFrame(() =>
       requestAnimationFrame(() => {
-        setOpened({ rooms, devices, decorations, models: config.models })
+        setOpened({ rooms, devices, decorations, models: config.models, floors })
         setHome(hass)
         setTries({})
         setFullscreen(true)
@@ -765,7 +835,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       return false
     }
     setSaving(null)
-    setOpened({ rooms, devices, decorations, models: config.models })
+    setOpened({ rooms, devices, decorations, models: config.models, floors })
     return true
   }
 
@@ -789,7 +859,8 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     setSelection({ roomId: null, vertex: null })
     setSelectedDecoration(null)
     registerModels(opened.models)
-    commit(opened.rooms, opened.devices, opened.decorations, opened.models)
+    if (opened.floors) setFloors(opened.floors)
+    commit(opened.rooms, opened.devices, opened.decorations, opened.models, opened.floors ?? floors)
     setConfirmDiscard(false)
     setFullscreen(false)
   }
@@ -799,8 +870,8 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
   const close = () => {
     const changed =
       draft.length > 0 ||
-      serialize(rooms, devices, decorations, config.models) !==
-        serialize(opened.rooms, opened.devices, opened.decorations, opened.models)
+      serialize(rooms, devices, decorations, config.models, floors) !==
+        serialize(opened.rooms, opened.devices, opened.decorations, opened.models, opened.floors)
     if (changed) setConfirmDiscard(true)
     else discard()
     return !changed
@@ -810,11 +881,12 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
   useBackButton(fullscreen, close)
 
   const closeDraft = () => {
+    const activeRooms = rooms.filter(r => (r.floor_id ?? 'floor-0') === activeFloorId)
     if (
       draft.length < 3 ||
       !isValidRoom(
         draft,
-        rooms.map(r => r.points),
+        activeRooms.map(r => r.points),
       )
     )
       return
@@ -822,6 +894,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     const room: RoomConfig = {
       id: `room-${n}`,
       name: `Room ${n}`,
+      floor_id: activeFloorId,
       points: draft.map(([x, y]) => [round(x), round(y)]),
       floor: { material: DEFAULT_FLOOR_MATERIAL },
     }
@@ -944,6 +1017,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
 
   const canvas = (
     <Canvas
+      activeFloorId={activeFloorId}
       rooms={rooms}
       devices={devices}
       decorations={decorations}
@@ -988,6 +1062,13 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       <Toolbar
         tool={tool}
         onTool={setTool}
+        floors={floors}
+        activeFloorId={activeFloorId}
+        onSelectFloor={setActiveFloorId}
+        onAddFloor={addFloor}
+        onReorderFloors={reorderFloors}
+        onUpdateFloor={updateFloor}
+        onDeleteFloor={deleteFloor}
         onFit={() => setView(null)}
         showLengths={showLengths}
         onShowLengths={setShowLengths}
@@ -1021,6 +1102,9 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
         onAssignArea={assignArea}
         onFloor={setFloor}
         onElevation={setElevation}
+        onThickness={setThickness}
+        floors={floors}
+        onAssignFloor={(roomId, floorId) => updateRoom(roomId, { floor_id: floorId })}
         hass={hass}
         onPresence={setPresence}
         decorations={decorations}
@@ -1167,7 +1251,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
                     </div>
                     <Scene
                       hass={home ?? hass}
-                      config={{ ...config, rooms, devices, decorations }}
+                      config={{ ...config, rooms, devices, decorations, floors }}
                       sky={hour}
                       wheelZoom
                       onPickDecoration={pickDecoration}
