@@ -31,6 +31,10 @@ export type SelectOption = {
   keywords?: string
   // Listed but not taken, for example an area another room already has.
   disabled?: boolean
+  // The area the option belongs to, for example the area a device is in.
+  area?: string
+  // The device the option belongs to, for example the device a piece is driving.
+  device?: string
 }
 
 type Props = {
@@ -227,6 +231,13 @@ export function Select({
                     <span className="min-w-0 flex-1 truncate">{o.label}</span>
                     {o.badge}
                   </div>
+                  {(o.device || o.area) && (
+                    <div className="flex items-center gap-2">
+                      {o.area && <span className="text-label-2 text-xs">{o.area}</span>}
+                      {(o.device && o.area) && <span className="text-label-2 text-xs">•</span>}
+                      {o.device && <span className="text-label-2 text-xs">{o.device}</span>}
+                    </div>
+                  )}
                   {o.detail && <div className="mt-0.5 pl-3">{o.detail}</div>}
                 </div>
               </button>
