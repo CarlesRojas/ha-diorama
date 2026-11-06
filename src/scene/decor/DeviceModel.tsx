@@ -1006,6 +1006,7 @@ export default function DeviceModel({ kind, item, state, room, all }: Props) {
       // 1 hinges on the left, -1 on the right.
       const hinge = p('flip') > 0.5 ? -1 : 1
       // A terrace pair always opens both its leaves.
+      const frame_only = style === 'frame'
       const terrace = style === 'terrace'
       const pair = w > 1.2 || terrace
       const lw = pair ? w / 2 : w
@@ -1214,7 +1215,7 @@ export default function DeviceModel({ kind, item, state, room, all }: Props) {
           </Slab>
           {/* Each leaf, hinged on its jamb, and square to the wall when
               fully open. */}
-          {(pair ? [1, -1] : [hinge]).map(side => (
+          {!frame_only && (pair ? [1, -1] : [hinge]).map(side => (
             <group key={side} position={[(-side * w) / 2, 0, 0]} rotation={[0, -side * (Math.PI / 2) * coverLevel, 0]}>
               <group position={[(side * lw) / 2, 0, 0]}>{body}</group>
               {handle(side, 1)}
