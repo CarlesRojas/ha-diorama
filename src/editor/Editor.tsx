@@ -13,6 +13,7 @@ import { snapToWall } from '#/editor/walls.ts'
 import { freePlacement, isValidRoom, pointOnBoundary, pointStrictlyInside } from '#/geometry/overlap.ts'
 import { decorationKind, type DecorationKind } from '#/decoration/catalog.ts'
 import { modelKindId, registerModels } from '#/decoration/models.ts'
+import { ridersOf, spotOn } from '#/decoration/surfaces.ts'
 import { entityGone } from '#/devices/catalog.ts'
 import { initialTry, toggleTry, type TryState, type TryStates } from '#/editor/tryState.ts'
 import { deviceTry } from '#/scene/Devices.tsx'
@@ -81,6 +82,9 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
   const [devices, setDevices] = useState<DeviceConfig[]>(config.devices ?? [])
   const [decorations, setDecorations] = useState<DecorationConfig[]>(config.decorations ?? [])
   const [selectedDecoration, setSelectedDecoration] = useState<string | null>(null)
+  // A top named in the selected piece's panel, marked on the plan while the
+  // pointer is over its name.
+  const [pointedTop, setPointedTop] = useState<string | null>(null)
   // A copied item, kept whole so it can be pasted into another room later,
   // even after the original is gone.
   const [clipboard, setClipboard] = useState<DecorationConfig | null>(null)
@@ -461,6 +465,30 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
         const { on: _on, floor: _floor, ...rest } = d
         if (level.on) return { ...rest, on: level.on }
         return level.floor ? { ...rest, floor: true } : rest
+      }),
+    )
+  }
+
+  // Moves an item onto a top picked in its panel: onto a free spot on it,
+  // facing the way it faces, with whatever stands on the item along.
+  const putOn = (id: string, supportId: string) => {
+    const item = decorations.find(d => d.id === id)
+    const support = decorations.find(d => d.id === supportId)
+    if (!item || !support) return
+    const { position, rotation } = spotOn(item, support, decorations)
+    const dx = position[0] - item.position[0]
+    const dy = position[1] - item.position[1]
+    const riders = new Set(ridersOf(id, decorations).map(r => r.id))
+    commit(
+      rooms,
+      devices,
+      decorations.map(d => {
+        if (d.id === id) {
+          const { floor: _floor, ...rest } = d
+          return { ...rest, position, rotation, room: support.room, on: support.id }
+        }
+        if (!riders.has(d.id)) return d
+        return { ...d, position: [round(d.position[0] + dx), round(d.position[1] + dy)] as Point }
       }),
     )
   }
@@ -948,6 +976,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       devices={devices}
       decorations={decorations}
       selectedDecoration={selectedDecoration}
+      pointedTop={selectedDecoration ? pointedTop : null}
       onDecorations={(next, done) => (done ? commit(rooms, devices, next) : setDecorations(next))}
       onSelectDecoration={pickDecoration}
       onRemoveDecoration={removeDecoration}
@@ -1061,6 +1090,8 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       onBind={bindDecoration}
       onDeviceLevels={setDeviceLevels}
       onStandOn={standOn}
+      onPutOn={putOn}
+      onPointTop={setPointedTop}
       onSelect={pickDecoration}
       tries={tries}
       tryStart={startOf}
