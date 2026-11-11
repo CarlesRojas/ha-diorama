@@ -20,7 +20,7 @@ import {
   signalValues,
 } from '#/signals.ts'
 import { LIGHT_GLOW_COLOR } from '#/theme.ts'
-import type { CardConfig, DeviceConfig, HomeAssistant } from '#/types.ts'
+import type { CardConfig, DecorationConfig, DeviceConfig, HomeAssistant } from '#/types.ts'
 import { useThree } from '@react-three/fiber'
 import { useEffect, useState } from 'react'
 import { Color, MathUtils, SRGBColorSpace, Vector3 } from 'three'
@@ -102,8 +102,10 @@ function itemState(
   device: DeviceConfig,
   guesses: Map<string, boolean>,
   presses: Map<string, Presses> = NO_PRESSES,
-  // The piece's own color when on, for a device that says none.
+  // The piece's own color and brightness when on, for a device that says
+  // neither.
   lightColor?: string,
+  lightBrightness?: number,
 ): ItemState | null {
   const entityId = device.entity_id
   const signals = deviceSignals(hass, entityId)
@@ -150,8 +152,9 @@ function itemState(
   return {
     on,
     // Missing, not one, when the device has no percentage: a device that
-    // only switches must not read as fully open.
-    level: signals.includes('level') ? levels.open : undefined,
+    // only switches must not read as fully open. A light on a switch shines
+    // at the piece's own brightness, full when it has none.
+    level: signals.includes('level') ? levels.open : lightBrightness,
     levels,
     glow,
     value: v.value,
@@ -179,11 +182,20 @@ function inverted(state: ItemState | null): ItemState | null {
 
 // What a piece with a device is tried from in the editor: the device as it
 // is, put in the editor's own terms, so trying it starts where the home is.
-export function deviceTry(hass: HomeAssistant, device: DeviceConfig, kind: DecorationKind, invert = false): TryState {
+export function deviceTry(
+  hass: HomeAssistant,
+  device: DeviceConfig,
+  kind: DecorationKind,
+  item?: DecorationConfig,
+): TryState {
   const start = initialTry(kind)
-  const read = itemState(hass, device, new Map())
-  const state = invert && invertible(kind) ? inverted(read) : read
+  const read = itemState(hass, device, new Map(), undefined, item?.light_color, item?.light_brightness)
+  const state = item?.invert && invertible(kind) ? inverted(read) : read
   if (!state) return start
+  // A light on a switch has no percentage of its own, so its brightness
+  // starts where the piece shines, not at nothing while it is on.
+  if (kind.expresses.includes('color') && state.levels.open === undefined && 'open' in start.levels)
+    state.levels = { ...state.levels, open: state.on ? (state.level ?? 1) : 0 }
   const v = signalValues(hass, device.entity_id)
   const hex = (n: number) => Math.round(n).toString(16).padStart(2, '0')
   const tint: TryState['tint'] = v.color
@@ -316,7 +328,8 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
     // device, and one without shows its first look.
     const tried = onTry && kind && canTry(kind)
     const tryState = tried ? tries?.[item.id] : undefined
-    const read = device && hass ? itemState(hass, device, guesses, presses, item.light_color) : null
+    const read =
+      device && hass ? itemState(hass, device, guesses, presses, item.light_color, item.light_brightness) : null
     const flip = !!item.invert && !!kind && invertible(kind)
     const real = flip ? inverted(read) : read
     // What the device says that trying has no control for, like a reading,

@@ -148,8 +148,14 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
   // Where trying a piece starts: its device as the home had it, or off.
   const startOf = (id: string, kind: DecorationKind) => {
     const device = devices.find(d => d.decorations?.includes(id))
-    const invert = decorations.find(d => d.id === id)?.invert
-    return device && home ? deviceTry(home, device, kind, invert) : initialTry(kind)
+    return device && home
+      ? deviceTry(
+          home,
+          device,
+          kind,
+          decorations.find(d => d.id === id),
+        )
+      : initialTry(kind)
   }
   // The pieces trying one also sets, the way a device moves every piece it
   // stands behind. Only those of the same kind, which share its controls.

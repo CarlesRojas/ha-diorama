@@ -35,6 +35,9 @@ export default function ModelPreview({ item, className, style, boxRef, interacti
   const kind = decorationKind(item.kind)
   if (!kind) return null
   const glow = new Color(item.light_color ?? LIGHT_GLOW_COLOR)
+  // A little under full, so the shade does not wash out, and dimmer with the
+  // piece's own brightness.
+  const lit = 0.8 * (item.light_brightness ?? 1)
   const centered: DecorationConfig = { ...item, position: [0, 0], rotation: 0 }
   // Centered on where the item actually sits, so a door standing on the
   // floor is in frame and a wall light hangs at its own height. Ceiling
@@ -53,7 +56,7 @@ export default function ModelPreview({ item, className, style, boxRef, interacti
             <DecorationModel
               item={centered}
               all={[centered]}
-              state={{ on: true, level: 0.8, levels: { open: 0.8 }, glow: [glow.r, glow.g, glow.b] }}
+              state={{ on: true, level: lit, levels: { open: lit }, glow: [glow.r, glow.g, glow.b] }}
             />
           </group>
         </Bounds>
