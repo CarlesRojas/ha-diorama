@@ -11,6 +11,12 @@ homeassistant:
       friendly_name: Living room TV
     media_player.walkman:
       friendly_name: Bedroom speaker
+    media_player.kitchen:
+      friendly_name: Study speaker
+    switch.ac:
+      friendly_name: Desk lamp
+    fan.living_room_fan:
+      friendly_name: Fan
 
 # The bedroom projector, playing a show from an app with no cover, so its
 # picture is the app's colors. It is the Demo integration's lounge room
@@ -45,6 +51,12 @@ media_player:
 # and a tap turns them all off, or all on when every one is off. Cleaning is
 # on while the robot vacuum cleans: it sends the robot out, and turning it
 # off sends the robot back to its dock.
+# The hall and landing light of the first floor, which the Demo integration
+# has no light left for, kept as a switch behind a light.
+input_boolean:
+  hall_light:
+    name: Hall light
+
 input_number:
   projector_screen_position:
     name: Projector screen position
@@ -54,6 +66,18 @@ input_number:
     step: 1
 
 template:
+  - light:
+      - name: Hall light
+        unique_id: hall_light
+        state: "{{ is_state('input_boolean.hall_light', 'on') }}"
+        turn_on:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.hall_light
+        turn_off:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.hall_light
   - cover:
       - name: Projector screen
         unique_id: projector_screen

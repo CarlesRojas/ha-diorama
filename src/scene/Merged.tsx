@@ -52,14 +52,14 @@ export function setMerging(on: boolean) {
 
 // The pieces that can be merged, by id: those with no device, that do not
 // move on their own, and that do not stand on something a device raises.
-function staticIds(config: CardConfig) {
+function staticIds(config: CardConfig, keep?: ReadonlySet<string>) {
   const items = config.decorations ?? []
   const byId = new Map(items.map(d => [d.id, d]))
   const bound = new Set<string>()
   for (const device of config.devices ?? []) for (const id of device.decorations ?? []) bound.add(id)
   const ids = new Set<string>()
   for (const item of items) {
-    if (bound.has(item.id)) continue
+    if (bound.has(item.id) || keep?.has(item.id)) continue
     const kind = decorationKind(item.kind)
     if (!kind || LIVE_KINDS.has(kind.id)) continue
     // A piece in a wall between two rooms stays its own, so it can stay
@@ -271,9 +271,11 @@ function bake(scene: Scene, ids: Set<string>): Baked {
   return { meshes, hidden }
 }
 
-type Props = { config: CardConfig }
+// `keep` are pieces that take a press of their own, like stairs to another
+// floor, and stay whole.
+type Props = { config: CardConfig; keep?: ReadonlySet<string> }
 
-export default function Merged({ config }: Props) {
+export default function Merged({ config, keep }: Props) {
   const scene = useThree(state => state.scene)
   const invalidate = useThree(state => state.invalidate)
   // Runs after every model has built and placed its parts, and again from
@@ -283,7 +285,7 @@ export default function Merged({ config }: Props) {
     // A part hidden around a focused room would be taken for one that is
     // not plain paint. The focus hides what it has to again on its next frame.
     showOnly(scene, null)
-    const baked = bake(scene, staticIds(config))
+    const baked = bake(scene, staticIds(config, keep))
     invalidate()
     return () => {
       for (const mesh of baked.hidden) mesh.visible = true
@@ -296,6 +298,6 @@ export default function Merged({ config }: Props) {
       for (const material of materials) material.dispose()
       invalidate()
     }
-  }, [scene, config, invalidate])
+  }, [scene, config, keep, invalidate])
   return null
 }

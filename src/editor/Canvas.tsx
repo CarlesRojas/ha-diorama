@@ -39,7 +39,18 @@ import { useEffect, useRef, useState } from 'react'
 import { useResizeObserver } from 'usehooks-ts'
 
 type Props = {
+  // The rooms of the floor being edited. Everything on the plan works on
+  // these alone: drawing, dragging, overlaps and placing pieces.
   rooms: RoomConfig[]
+  // The rooms of the other floors, drawn faint and dashed under this one's,
+  // so walls can be lined up across floors, and snapped to like its own.
+  ghosts?: RoomConfig[]
+  // Where the flights that climb up to this floor from the one below stand,
+  // as the outline of each, so the room drawn over them can leave the
+  // stairwell open.
+  arriving?: Point[][]
+  // The outlines of the pieces of the floor below, fainter still.
+  ghostPieces?: Point[][]
   // Read only, to mark the items that stand in for one.
   devices: DeviceConfig[]
   decorations: DecorationConfig[]
@@ -105,6 +116,9 @@ const CLICK_PX = 4
 
 export default function Canvas({
   rooms,
+  ghosts = [],
+  arriving = [],
+  ghostPieces = [],
   devices,
   decorations,
   selectedDecoration,
@@ -355,7 +369,7 @@ export default function Canvas({
       case 'vertex': {
         const room = currentRooms.find(r => r.id === d.roomId)!
         const current = room.points[d.index]
-        const snapped = snap(p, v, currentRooms, { roomId: d.roomId, index: d.index }, [], grid())
+        const snapped = snap(p, v, [...currentRooms, ...ghosts], { roomId: d.roomId, index: d.index }, [], grid())
         patch(
           d.roomId,
           axisOrder(snapped[0] - current[0], snapped[1] - current[1]).map(([dx, dy]) =>
@@ -375,7 +389,7 @@ export default function Canvas({
         const t = (p[0] - d.start[0]) * nx + (p[1] - d.start[1]) * ny
         const others = currentRooms.filter(r => r.id !== d.roomId)
         const moved: Point = [a[0] + nx * t, a[1] + ny * t]
-        const snapped = snap(moved, v, others, undefined, [], grid())
+        const snapped = snap(moved, v, [...others, ...ghosts], undefined, [], grid())
         const ts = (snapped[0] - a[0]) * nx + (snapped[1] - a[1]) * ny
         patch(d.roomId, [
           d.origin.map((q, i) =>
@@ -391,7 +405,7 @@ export default function Canvas({
         const dy = p[1] - d.start[1]
         // Snap the moved first corner, then apply the same offset to the rest.
         const first: Point = [d.origin[0][0] + dx, d.origin[0][1] + dy]
-        const snapped = snap(first, v, others, undefined, [], grid())
+        const snapped = snap(first, v, [...others, ...ghosts], undefined, [], grid())
         const ox = snapped[0] - d.origin[0][0]
         const oy = snapped[1] - d.origin[0][1]
         // Where the room is right now, as an offset from where the drag began.
@@ -653,7 +667,12 @@ export default function Canvas({
           return
         }
       }
-      const next = snap(p, view, rooms, undefined, draft, grid())
+      const next = snap(p, view, [...rooms, ...ghosts], undefined, draft, grid())
+      // A click that snaps onto the first corner closes the room too.
+      if (draft.length >= 3 && next[0] === draft[0][0] && next[1] === draft[0][1]) {
+        if (draftClosable) onCloseDraft()
+        return
+      }
       if (draftPointValid(next)) onDraftPoint(next)
     }
   }
@@ -890,7 +909,7 @@ export default function Canvas({
   const insertVertex = (roomId: string, index: number, point: Point) => {
     const room = rooms.find(r => r.id === roomId)
     if (!room) return
-    const p = snap(point, view, rooms, undefined, [], grid()).map(round) as Point
+    const p = snap(point, view, [...rooms, ...ghosts], undefined, [], grid()).map(round) as Point
     updateRoom(roomId, [...room.points.slice(0, index + 1), p, ...room.points.slice(index + 1)], true)
     onSelect({ roomId, vertex: index + 1 })
   }
@@ -898,7 +917,7 @@ export default function Canvas({
   const cursor = tool === 'draw' ? 'crosshair' : panning ? 'grabbing' : 'default'
   const hoverSnapped =
     tool === 'draw' && hover
-      ? snap(hover, view, rooms, undefined, draft, fineShown ? EDITOR_FINE_GRID_M : EDITOR_GRID_M)
+      ? snap(hover, view, [...rooms, ...ghosts], undefined, draft, fineShown ? EDITOR_FINE_GRID_M : EDITOR_GRID_M)
       : null
   const polygon = (points: Point[]) => points.map(p => toScreen(view, p).join(',')).join(' ')
 
@@ -1101,6 +1120,50 @@ export default function Canvas({
         </defs>
         <Grid view={view} width={width} height={height} />
         {trace && <TraceImage trace={trace} view={view} />}
+
+        {/* The other floors, faint and out of reach, to line this one up on. */}
+        {ghosts.map(room => (
+          <polygon
+            key={`ghost-${room.id}`}
+            points={polygon(room.points)}
+            fill="var(--primary-text-color)"
+            fillOpacity={0.025}
+            stroke="var(--primary-text-color)"
+            strokeOpacity={0.28}
+            strokeWidth={1}
+            strokeDasharray="5 4"
+            strokeLinejoin="round"
+            className="pointer-events-none"
+          />
+        ))}
+        {ghostPieces.map((outline, i) => (
+          <polygon
+            key={`ghost-piece-${i}`}
+            points={polygon(outline)}
+            fill="var(--primary-text-color)"
+            fillOpacity={0.03}
+            stroke="var(--primary-text-color)"
+            strokeOpacity={0.16}
+            strokeWidth={1}
+            strokeLinejoin="round"
+            className="pointer-events-none"
+          />
+        ))}
+        {/* The stairs coming up from the floor below. */}
+        {arriving.map((outline, i) => (
+          <polygon
+            key={`arriving-${i}`}
+            points={polygon(outline)}
+            fill={EDITOR_BOUND_COLOR}
+            fillOpacity={0.08}
+            stroke={EDITOR_BOUND_COLOR}
+            strokeOpacity={0.7}
+            strokeWidth={1.25}
+            strokeDasharray="3 3"
+            strokeLinejoin="round"
+            className="pointer-events-none"
+          />
+        ))}
 
         {rooms.map(room => {
           // While an item is dragged, the room under the pointer lifts a

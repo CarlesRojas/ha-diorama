@@ -253,7 +253,17 @@ export abstract class TileHost<C extends TileConfig> extends ReactHost<C> {
     const filter = roomFilter()?.tiles ? roomFilter() : null
     const mode = this._config.room_filter
     if (this._config.never_hide || mode === 'show') return true
-    if (mode === 'home') return !filter
+    // A floor in view with no room is the home, seen one floor at a time:
+    // only a tile of an area that is on another floor alone steps aside.
+    const home = !filter?.room_id
+    if (mode === 'home') return home
+    if (home) {
+      if (mode === 'room') return false
+      const away = filter?.floor?.away
+      if (!away?.length) return true
+      const area = this.area()
+      return !area || !away.includes(area)
+    }
     if (!filter) return mode !== 'room'
     // A room with no area matches no tile.
     if (!filter.area_id) return mode !== 'room'

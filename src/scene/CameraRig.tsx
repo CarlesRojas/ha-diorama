@@ -7,6 +7,7 @@ import {
   CAMERA_TURN_S,
 } from '#/constants.ts'
 import { passageFootprint, passagesOf } from '#/geometry/passages.ts'
+import { pieceOutline } from '#/lib/floors.ts'
 import { held } from '#/scene/drags.ts'
 import { flights } from '#/scene/flights.ts'
 import { fitView, frameRooms, sceneHeight } from '#/scene/framing.ts'
@@ -45,6 +46,9 @@ type Props = {
   // The room the card has flown to, which the camera keeps fitted to the
   // card as it changes shape until the viewer moves it.
   focus?: string | null
+  // The floor of the home in view. On another one the camera starts over,
+  // landing on its whole floor or on the room in focus, with no flight.
+  floor?: string | null
   handle?: RefObject<CameraHandle | null>
   // Told when the camera leaves the view it opened with, and when it is
   // back there.
@@ -122,6 +126,7 @@ export default function CameraRig({
   view,
   framed,
   focus,
+  floor = null,
   handle,
   onAway,
   wheelZoom = false,
@@ -254,6 +259,10 @@ export default function CameraRig({
       id: '',
       points: passageFootprint(passage),
     }))
+    // So are the stairs that come up into it from the floor below, which
+    // stand in the stairwell beside it rather than in it.
+    for (const item of decorations)
+      if (item.below && item.room === room.id) signs.push({ id: '', points: pieceOutline(item) })
     return room.camera
       ? fit(
           room.camera,
@@ -642,6 +651,19 @@ export default function CameraRig({
       view?.removeEventListener('blur', onBlur)
     }
   }, [controls])
+
+  // Another floor is a fresh start, as if the card had just opened on it.
+  // This runs before the camera is placed below, in the same commit.
+  const lastFloor = useRef(floor)
+  useLayoutEffect(() => {
+    if (lastFloor.current === floor) return
+    lastFloor.current = floor
+    flight.current = null
+    moved.current = false
+    resting.current = true
+    if (!focus) setAway(false)
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [floor])
 
   // The camera follows the card's shape: the opening view while untouched,
   // and the room flown to while it rests there. A flight under way is sent

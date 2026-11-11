@@ -57,6 +57,9 @@ type Props = {
   onTry?: (id: string) => void
   // Stops drawing and holds the last frame, for a card nobody can see.
   paused?: boolean
+  // The floor of the home in view, for a card with more than one. The
+  // camera lands on another floor rather than flying there.
+  floor?: string | null
   // Filled with the camera's handle, to read the view or fly to one.
   cameraRef?: RefObject<CameraHandle | null>
   // Told when the camera leaves the view it opened with, and when it is back.
@@ -70,6 +73,10 @@ type Props = {
   roomFirst?: (room: string, ask?: boolean) => boolean
   // Filled with when each frame is drawn, for counting them.
   fpsTicks?: FpsTicks
+  // The flights of stairs that lead to another floor, and what a click on
+  // one does in the card.
+  stairs?: ReadonlySet<string>
+  onStairs?: (id: string) => void
 }
 
 export default function Scene({
@@ -89,6 +96,9 @@ export default function Scene({
   focus,
   roomFirst,
   fpsTicks,
+  stairs,
+  onStairs,
+  floor = null,
 }: Props) {
   const rooms = config.rooms ?? []
   const radius = config.radius ?? ROOM_CORNER_RADIUS_M
@@ -151,6 +161,7 @@ export default function Scene({
           view={config.camera}
           framed={config.frame_rooms}
           focus={focus}
+          floor={floor}
           handle={cameraRef}
           onAway={onCameraAway}
           wheelZoom={wheelZoom}
@@ -164,11 +175,13 @@ export default function Scene({
           roomFirst={roomFirst}
           // The editor picks a room from its floor, never from a door.
           onRoom={onPickDecoration ? undefined : onPickRoom}
+          stairs={stairs}
+          onStairs={onPickDecoration ? undefined : onStairs}
         />
         {/* In the card, the pieces with no device behind them are drawn
           together, a room at a time. In the editor every piece is its own,
           so it can be picked and tried. */}
-        {!onPickDecoration && !onTry && <Merged config={config} />}
+        {!onPickDecoration && !onTry && <Merged config={config} keep={onStairs ? stairs : undefined} />}
         {/* A press that misses everything looks around itself for something
           to act on, so small things are still easy to hit, and only then
           asks whether it landed on a room's floor. */}

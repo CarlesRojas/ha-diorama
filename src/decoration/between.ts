@@ -8,7 +8,7 @@ const BETWEEN_KINDS = new Set(['door', 'sliding_door', 'garage_door', 'window', 
 // too, in meters. Wider than a wall is thick, narrower than a door is wide.
 const BETWEEN_REACH_M = 0.3
 
-function distanceToOutline(p: Point, points: Point[]) {
+export function distanceToOutline(p: Point, points: Point[]) {
   let best = Infinity
   for (let i = 0; i < points.length; i++) {
     const a = points[i]

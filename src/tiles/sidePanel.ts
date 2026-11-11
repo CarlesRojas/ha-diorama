@@ -38,6 +38,8 @@ export const GAP_PX = 10
 // fade in, in milliseconds.
 const FADE_OUT_MS = 140
 const FADE_IN_MS = 220
+// What a floor in view with no room is kept as, in place of a room's id.
+const FLOOR_KEY = 'floor:'
 
 // How many of the 12 columns and how many rows a side card takes, read from
 // its config so the layout is known before the card has loaded. One of our
@@ -378,8 +380,11 @@ export class SidePanel extends HTMLElement {
 
   // A change of room fades the tiles of the one before out and those of
   // the next one in, unless the panel cannot be seen or asks for no motion.
+  // A floor in view with no room counts as a room of its own here, so going
+  // from one floor to another fades the tiles over too.
   private updateRoom() {
-    const room = roomFilter()?.room_id ?? null
+    const filter = roomFilter()
+    const room = filter?.room_id ?? (filter?.floor ? `${FLOOR_KEY}${filter.floor.id}` : null)
     const before = this.shown
     this.shown = room
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -425,11 +430,19 @@ export class SidePanel extends HTMLElement {
   // A card is away while another room is in view. With the home's own
   // tiles set, they are all the whole home shows, unless it keeps the
   // rooms' too, and they go away once a room is in view.
-  private showRoom(room: string | null) {
+  // On a floor with no room in view, the rooms of the other floors are away.
+  private showRoom(shown: string | null) {
+    const room = shown?.startsWith(FLOOR_KEY) ? null : shown
+    const floor = room ? undefined : roomFilter()?.floor
     const home = this._config?.home?.show_rooms !== true && this.side.some(card => card.dataset.home !== undefined)
     for (const card of this.side) {
+      const elsewhere = !!floor && !!card.dataset.room && !floor.rooms.includes(card.dataset.room)
       const away =
-        card.dataset.home !== undefined ? !!room : room ? !!card.dataset.room && card.dataset.room !== room : home
+        card.dataset.home !== undefined
+          ? !!room
+          : room
+            ? !!card.dataset.room && card.dataset.room !== room
+            : home || elsewhere
       card.toggleAttribute('data-away', away)
     }
     this.updateEmpty()

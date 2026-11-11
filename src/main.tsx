@@ -150,6 +150,8 @@ function renameTiles(tiles: TileChoices): TileChoices {
 }
 
 function validate(config: CardConfig) {
+  if (config.floors !== undefined && !Array.isArray(config.floors)) throw new Error('floors must be a list')
+  for (const floor of config.floors ?? []) if (!floor?.id) throw new Error('Every floor needs an id')
   if (config.rooms !== undefined && !Array.isArray(config.rooms)) throw new Error('rooms must be a list')
   for (const room of config.rooms ?? []) {
     if (!room.id) throw new Error('Every room needs an id')

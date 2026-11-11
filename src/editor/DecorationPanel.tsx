@@ -252,7 +252,11 @@ export default function DecorationPanel({
       )
     // The heights it can stand at where it is: the floor, its own height
     // and the tops under it.
-    const levels = levelsAt(item, decorations)
+    // Only what is on its own floor, since `rooms` are that floor's.
+    const levels = levelsAt(
+      item,
+      decorations.filter(d => d.id === item.id || rooms.some(r => r.id === d.room)),
+    )
     const levelAt = levels.findIndex(l => l.current)
     // Every top in the room it could go on, each named after its kind and
     // numbered when the room has more than one of that kind.

@@ -1,9 +1,10 @@
 import { betweenOf, coverAt, coversOver, roomLookedFrom, type Between } from '#/decoration/between.ts'
-import { decorationKind, invertible, type DecorationKind } from '#/decoration/catalog.ts'
+import { decorationKind, invertible, paramValue, type DecorationKind } from '#/decoration/catalog.ts'
 import { canTry, initialTry, tryItemState, type TryState, type TryStates } from '#/editor/tryState.ts'
 import { elevationOf } from '#/geometry/elevation.ts'
 import { DOOR_KINDS } from '#/geometry/passages.ts'
 import DecorationModel from '#/scene/decor/DecorationModel.tsx'
+import type { Fade } from '#/scene/decor/fade.tsx'
 import type { DragAction } from '#/scene/decor/drag.tsx'
 import { grabs, type Grab } from '#/scene/drags.ts'
 import type { PressAction } from '#/scene/decor/press.ts'
@@ -43,6 +44,10 @@ type Props = {
   // In the card, a click that is for a room and nothing else, with the
   // rooms on either side of the wall the piece it landed on stands in.
   onRoom?: (room: string, through: string[]) => void
+  // The flights of stairs that lead to another floor, and what a click on
+  // one does in the card: it goes there.
+  stairs?: ReadonlySet<string>
+  onStairs?: (id: string) => void
 }
 
 // The last color each light was seen with. Home Assistant drops rgb_color
@@ -61,6 +66,11 @@ const scratch = new Color()
 // for as long as the device took to answer, which for a lamp on a cloud
 // account can be a second or two.
 const GUESS_MS = 2000
+
+// How much of a flight to another floor shows whole on each floor, from its
+// own end, and over how much more of it it melts away, as shares of its rise.
+const STAIRS_SHOWN = 0.3
+const STAIRS_FADE = 0.35
 
 // The bit in a cover's supported features that says it takes a position.
 const SET_POSITION = 4
@@ -207,7 +217,17 @@ export function deviceTry(
   return { on: state.on, levels: { ...start.levels, ...state.levels }, tint }
 }
 
-export default function Devices({ hass, config, onPick, tries, onTry, roomFirst, onRoom }: Props) {
+export default function Devices({
+  hass,
+  config,
+  onPick: pick,
+  tries,
+  onTry,
+  roomFirst,
+  onRoom,
+  stairs,
+  onStairs,
+}: Props) {
   const devices = config.devices ?? []
   const decorations = config.decorations ?? []
   const rooms = config.rooms ?? []
@@ -309,7 +329,7 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
   // A cover Home Assistant can send to any position, fed by that position,
   // can be dragged there. Not in the editor, which leaves the real one be.
   const draggable = (device: DeviceConfig | undefined) => {
-    if (!hass || !device || onTry || onPick || !device.entity_id.startsWith('cover.')) return false
+    if (!hass || !device || onTry || pick || !device.entity_id.startsWith('cover.')) return false
     const entity = hass.states[device.entity_id]
     if (!entity || entity.state === 'unavailable') return false
     const features = Number(entity.attributes.supported_features ?? 0)
@@ -359,7 +379,10 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
   return (
     <>
       {decorations.map(item => {
-        const { device, tried, state, flip } = states.get(item.id) ?? stateOf(item)
+        const { device, kind, tried, state, flip } = states.get(item.id) ?? stateOf(item)
+        // A flight seen from the floor it climbs up to is on the floor below,
+        // so the editor does not pick it from here.
+        const onPick = item.below ? undefined : pick
         // A piece in a wall between two rooms sends its first click to the
         // room it is looked at from, the one the camera looks out of.
         const between = betweenOf(item, rooms)
@@ -411,6 +434,10 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
               : between && onRoom
                 ? () => onRoom(roomOf() === between.front ? between.back : between.front, between.rooms)
                 : undefined
+        // A flight of stairs that leads to another floor goes there, the way
+        // a door leads into the next room.
+        const climb: PressAction | undefined =
+          !device && !onPick && onStairs && stairs?.has(item.id) ? () => onStairs(item.id) : undefined
         // Home Assistant's dialog would let the editor change the real
         // device, so the editor has none.
         const onOpen: PressAction | undefined = onTry
@@ -452,7 +479,18 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
                 if (cover) grabs.get(cover.id)?.(down)
               }
             : undefined
-        actions.set(item.id, { click: onClick, open: onOpen, drag, pass })
+        actions.set(item.id, { click: climb ?? onClick, open: onOpen, drag, pass })
+        // A flight that leads to another floor shows only its own end on
+        // each one: downstairs its foot, melting away above half way up,
+        // and upstairs its top, melting away below.
+        const floor = floorUnder(item.room, between) - (item.below ?? 0)
+        const rise = kind?.id === 'stairs' ? paramValue(kind, item.params, 'height', item.variant) : 0
+        const fade: Fade | undefined =
+          rise > 0 && (item.below || stairs?.has(item.id))
+            ? item.below
+              ? { from: floor + rise * (1 - STAIRS_SHOWN), to: floor + rise * (1 - STAIRS_SHOWN - STAIRS_FADE) }
+              : { from: floor + rise * STAIRS_SHOWN, to: floor + rise * (STAIRS_SHOWN + STAIRS_FADE) }
+            : undefined
         const h = handler(item.id)
         return (
           <DecorationModel
@@ -461,12 +499,16 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
             all={decorations}
             room={roomById.get(item.room)}
             between={between}
-            floor={floorUnder(item.room, between)}
+            floor={floor}
+            fade={fade}
             state={state}
             raise={raise(item)}
-            onClick={onClick && h.click}
+            onClick={(climb ?? onClick) && h.click}
             onOpen={onOpen && h.open}
-            exact={!device && !onPick && !tried}
+            // A flight to another floor takes a press near it too, as a
+            // piece with a device does, since a press easily lands between
+            // the treads of an open flight.
+            exact={!device && !onPick && !tried && !climb}
             onDrag={drag && h.drag}
             passDrag={pass && h.pass}
           />
