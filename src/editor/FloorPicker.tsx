@@ -192,13 +192,21 @@ function RenameField({ floor, onDone }: { floor: Floor; onDone: (name: string | 
 }
 
 // Adds a floor over the highest. On a home with one floor it stands alone
-// among the toolbar's tools, as a stack of floors rather than a bare plus,
+// among the toolbar's tools, as a stack of floors with its name beside it,
 // with a tip like theirs.
 function AddButton({ onAdd, first }: { onAdd: () => void; first: boolean }) {
   return (
     <div className="group relative">
-      <button type="button" aria-label="Add a floor" onClick={onAdd} className={cn(iconButton, 'size-8')}>
+      <button
+        type="button"
+        aria-label="Add a floor"
+        onClick={onAdd}
+        className={cn(iconButton, first ? 'h-8 gap-2 px-2.5 text-[13px] font-medium' : 'size-8')}
+      >
         <FontAwesomeIcon icon={first ? faLayerGroup : faPlus} className={first ? 'size-[15px]' : 'size-3'} />
+        {/* Alone among the tools it says what it is for. Next to the floors
+            it is plain to see, and a plus is enough. */}
+        {first && 'Add floor'}
       </button>
       <div
         className={cn(

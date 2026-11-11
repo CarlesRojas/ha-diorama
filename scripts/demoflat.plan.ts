@@ -42,8 +42,9 @@ const BATHROOM: Point[] = [
   [4.2, 2.2],
 ]
 // The hall along the left, through a door from the living room, with the
-// stairs up its outside wall. They start beside the door and climb away
-// from it, so coming in from the living room the first step is right there.
+// stairs up its outside wall. In front of the door the hall is clear, and
+// the stairs start just past it and climb away from it, so coming in from
+// the living room there is room to step in and turn onto the first step.
 const HALL: Point[] = [
   [-1.6, 0],
   [0, 0],
@@ -61,8 +62,8 @@ const KIDS: Point[] = KITCHEN
 const STUDY: Point[] = BEDROOM
 const LAUNDRY: Point[] = BATHROOM
 const LANDING: Point[] = [
-  [-1.6, 3.65],
-  [0, 3.65],
+  [-1.6, 4.6],
+  [0, 4.6],
   [0, 5.6],
   [-1.6, 5.6],
 ]
@@ -98,7 +99,7 @@ const decorations: DecorationConfig[] = [
     id: 'hall_window',
     kind: 'window',
     room: 'hall',
-    position: [-1.6, 4.6],
+    position: [-1.6, 5.1],
     rotation: 90,
     variant: 'casement',
     params: { height: 1.45, sill: 0.65, width: 0.75 },
@@ -107,7 +108,7 @@ const decorations: DecorationConfig[] = [
     id: 'hall_blind',
     kind: 'blind',
     room: 'hall',
-    position: [-1.6, 4.6],
+    position: [-1.6, 5.1],
     rotation: 90,
     variant: 'venetian',
     params: { outside: 1, width: 0.75 },
@@ -328,16 +329,24 @@ const decorations: DecorationConfig[] = [
   // from beside that door to the first floor, their foot to the south and
   // their top to the north, with the rail on their open side.
   { id: 'hall_door', kind: 'door', room: 'living', position: [0, 0.6], rotation: 90, variant: 'flush' },
-  { id: 'stairs', kind: 'stairs', room: 'hall', position: [-1.13, 1.975] },
-  { id: 'hall_light', kind: 'light_ceiling', room: 'hall', position: [-0.8, 4.6], variant: 'dome' },
+  { id: 'stairs', kind: 'stairs', room: 'hall', position: [-1.13, 2.925] },
+  { id: 'hall_light', kind: 'light_ceiling', room: 'hall', position: [-0.7, 0.65], variant: 'dome' },
   { id: 'shoe_rack', kind: 'shoe_rack', room: 'hall', position: [-0.8, 5.42] },
-  { id: 'hall_plant', kind: 'plant_large', room: 'hall', position: [-0.3, 4.0], variant: 'fiddle' },
+  { id: 'hall_plant', kind: 'plant_large', room: 'hall', position: [-1.3, 0.3], variant: 'fiddle' },
 
   // The landing at the top of the stairs, with a rail along the stairwell
   // beside the flight, and one along the terrace's side of it.
-  { id: 'landing_rail', kind: 'railing', room: 'landing', position: [-0.34, 3.7], params: { width: 0.6 } },
-  { id: 'landing_light', kind: 'light_ceiling', room: 'landing', position: [-0.8, 4.6], variant: 'dome' },
-  { id: 'kids_landing_door', kind: 'door', room: 'kids', position: [0, 4.6], rotation: 90, variant: 'flush' },
+  { id: 'landing_rail', kind: 'railing', room: 'landing', position: [-0.34, 4.65], params: { width: 0.6 } },
+  { id: 'landing_light', kind: 'light_ceiling', room: 'landing', position: [-0.8, 5.1], variant: 'dome' },
+  { id: 'kids_landing_door', kind: 'door', room: 'kids', position: [0, 5.1], rotation: 90, variant: 'flush' },
+  {
+    id: 'kids_rail',
+    kind: 'railing',
+    room: 'kids',
+    position: [0.05, 3.825],
+    rotation: 90,
+    params: { width: 1.5 },
+  },
   {
     id: 'terrace_rail',
     kind: 'railing',
@@ -518,7 +527,7 @@ export const DEMO_FLAT: CardConfig = {
       name: 'Hall',
       area_id: 'hall',
       points: HALL,
-      floor: { material: 'wood' },
+      floor: { material: 'tiles', color: '#c9c1b3' },
       order: ['light.hall', 'cover.hall_blind'],
       // Open to the kitchen along their shared wall, but the way in is the
       // door from the living room.

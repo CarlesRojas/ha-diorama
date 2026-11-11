@@ -260,7 +260,9 @@ export default function Card({ hass, config, panel = false, preview = false }: P
                 />
               </div>
               {fps && <FpsBadge ticks={fpsTicks} />}
-              {floors.length > 1 && <FloorSwitch floors={floors} current={floor} onPick={pickFloor} />}
+              {floors.length > 1 && config.floor_switch !== false && (
+                <FloorSwitch floors={floors} current={floor} onPick={pickFloor} />
+              )}
               {/* With a room in view, an arrow in the corner takes it back to
                 the whole home, for a phone with no back button of its own. Just
                 the arrow, faint, over a target big enough for a finger. */}

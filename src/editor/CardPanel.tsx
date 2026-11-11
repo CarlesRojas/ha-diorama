@@ -1,4 +1,5 @@
 import { aspectRatioNumber } from '#/lib/aspect.ts'
+import { hasFloors } from '#/lib/floors.ts'
 import { BACKGROUNDS, DEFAULT_BACKGROUND, PLAIN_SWATCH, THEME_BACKGROUND } from '#/lib/background.ts'
 import { setDevSettings, useDevSettings } from '#/lib/devSettings.ts'
 import { setPreviewRoom } from '#/lib/previewRoom.ts'
@@ -10,7 +11,15 @@ import { ResetButton, Slider, Switch } from '#/editor/panel.tsx'
 import { SUN_DIRECTION_DEG } from '#/constants.ts'
 import { EDITOR_TINT_COLOR } from '#/theme.ts'
 import { entityName } from '#/devices/catalog.ts'
-import type { BackgroundConfig, CardConfig, HomeAssistant, HomeConfig, RoomConfig, TileChoice, TileChoices } from '#/types.ts'
+import type {
+  BackgroundConfig,
+  CardConfig,
+  HomeAssistant,
+  HomeConfig,
+  RoomConfig,
+  TileChoice,
+  TileChoices,
+} from '#/types.ts'
 import {
   autoTiles,
   choicesOf,
@@ -127,6 +136,14 @@ export default function CardPanel({ hass, config, onChange, opening, onOpen }: P
   const setFilterTiles = (on: boolean) => {
     const { filter_tiles: _, ...rest } = config
     onChange(on ? { ...rest, filter_tiles: true } : rest)
+  }
+
+  // Whether a home of several floors shows the switch between them in the
+  // card's corner. On is the default, so only off is written down.
+  const floorSwitch = config.floor_switch !== false
+  const setFloorSwitch = (on: boolean) => {
+    const { floor_switch: _, ...rest } = config
+    onChange(on ? rest : { ...rest, floor_switch: false })
   }
 
   // The rooms the view of the whole home frames. None chosen frames them
@@ -299,7 +316,12 @@ export default function CardPanel({ hass, config, onChange, opening, onOpen }: P
       >
         <div className="flex flex-col gap-8 pt-2">
           <div className="flex flex-col gap-3" {...showsInPreview(null)}>
-            <HeadingInput value={home.name ?? ''} placeholder="Home" label="Home" onChange={name => setHome({ name })} />
+            <HeadingInput
+              value={home.name ?? ''}
+              placeholder="Home"
+              label="Home"
+              onChange={name => setHome({ name })}
+            />
             {hass && homeEntities.length > 0 && (
               <WidgetGrid
                 hass={hass}
@@ -398,6 +420,17 @@ export default function CardPanel({ hass, config, onChange, opening, onOpen }: P
               onChange={setFilterTiles}
             />
           </label>
+          {hasFloors(config) && (
+            <label className="border-separator flex cursor-pointer items-center justify-between gap-4 border-t py-2.5">
+              <span className="flex min-w-0 flex-col">
+                <span className="text-[13px]">Floor switch</span>
+                <span className="text-label-2 text-xs">
+                  The floors in the card's corner. Off, floors are only reached by the stairs between them
+                </span>
+              </span>
+              <Switch checked={floorSwitch} accent={EDITOR_TINT_COLOR} label="Floor switch" onChange={setFloorSwitch} />
+            </label>
+          )}
           <div className="border-separator flex flex-col gap-2 border-t py-3">
             <div className="flex items-center gap-2">
               <FontAwesomeIcon
@@ -525,10 +558,7 @@ export default function CardPanel({ hass, config, onChange, opening, onOpen }: P
       </Section>
 
       {rooms.length > 0 && (
-        <Section
-          title="Framed rooms"
-          subtitle="What the whole home's view zooms in on. None on frames them all."
-        >
+        <Section title="Framed rooms" subtitle="What the whole home's view zooms in on. None on frames them all.">
           <div className={cn(group, 'gap-0 py-0')}>
             {rooms.map((room, i) => {
               const name = roomName(hass, room)
@@ -622,11 +652,7 @@ function Footer() {
     <footer className="flex flex-col gap-6 pt-2">
       <div className="flex flex-col items-center gap-0.5">
         <span className="text-label-2 text-[13px] font-semibold">Diorama</span>
-        <button
-          type="button"
-          onClick={tap}
-          className="text-label-2 cursor-default text-xs tabular-nums select-none"
-        >
+        <button type="button" onClick={tap} className="text-label-2 cursor-default text-xs tabular-nums select-none">
           v{__CARD_VERSION__}
         </button>
       </div>
@@ -652,7 +678,8 @@ function Footer() {
                 <span className="flex min-w-0 flex-col">
                   <span className="text-[13px]">Performance mode on touch screens</span>
                   <span className="text-label-2 text-xs">
-                    At most 24 frames a second and no shadows on a phone or tablet. Turn it off here for the full picture on this browser
+                    At most 24 frames a second and no shadows on a phone or tablet. Turn it off here for the full
+                    picture on this browser
                   </span>
                 </span>
                 <Switch
@@ -717,7 +744,8 @@ function Page({
       // and the header still hides the cards scrolled under it.
       style={
         {
-          '--dio-surface': 'var(--ha-dialog-surface-background, var(--mdc-theme-surface, var(--card-background-color)))',
+          '--dio-surface':
+            'var(--ha-dialog-surface-background, var(--mdc-theme-surface, var(--card-background-color)))',
         } as CSSProperties
       }
       className="dio-editor font-system flex min-h-full flex-col gap-3 px-4 pb-6 text-(--primary-text-color) antialiased"
@@ -857,7 +885,14 @@ function RoomEntities({
           label={`${roomName(hass, room)} name`}
           onChange={onRename}
         />
-        <button type="button" aria-label={`Move ${roomName(hass, room)} up`} title="Move up" disabled={!onUp} onClick={onUp} className={arrow}>
+        <button
+          type="button"
+          aria-label={`Move ${roomName(hass, room)} up`}
+          title="Move up"
+          disabled={!onUp}
+          onClick={onUp}
+          className={arrow}
+        >
           <FontAwesomeIcon icon={faChevronUp} className="size-3.5" />
         </button>
         <button
@@ -895,10 +930,7 @@ function RoomEntities({
             .map(([id, auto], i) => {
               const name = entityName(hass, id)
               return (
-                <li
-                  key={id}
-                  className={cn('flex items-center gap-2.5 py-2', i > 0 && 'border-separator border-t')}
-                >
+                <li key={id} className={cn('flex items-center gap-2.5 py-2', i > 0 && 'border-separator border-t')}>
                   <span className="bg-fill-strong text-label-2 flex size-7 flex-none items-center justify-center rounded-md">
                     <Icon
                       icon={typeof auto.piece_icon === 'string' ? auto.piece_icon : entityIcon(hass, id)}
@@ -947,7 +979,7 @@ function HeadingInput({
       onChange={event => onChange(event.target.value)}
       className={cn(
         heading,
-        'hover:bg-fill focus:bg-fill placeholder:text-(--primary-text-color) -mx-1.5 min-w-0 rounded-lg px-1.5 outline-none',
+        'hover:bg-fill focus:bg-fill -mx-1.5 min-w-0 rounded-lg px-1.5 outline-none placeholder:text-(--primary-text-color)',
       )}
     />
   )

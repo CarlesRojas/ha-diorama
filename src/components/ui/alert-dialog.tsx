@@ -10,8 +10,8 @@ type AlertDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   children: ReactNode
-  // For what cannot be undone and takes a lot with it: the dialog is drawn
-  // in red, edge and wash, so it cannot be taken for an everyday question.
+  // For what cannot be undone and takes a lot with it: the dialog has a red
+  // edge, and a solid face so nothing behind it shows through what it says.
   danger?: boolean
 }
 
@@ -42,8 +42,7 @@ export function AlertDialog({ open, onOpenChange, children, danger = false }: Al
         className={cn(
           floating,
           'w-full max-w-[300px] rounded-[20px] bg-(--card-background-color)/90 px-5 pt-5 pb-4 text-center text-(--primary-text-color)',
-          danger &&
-            'border-danger ring-danger/50 bg-[color-mix(in_srgb,var(--color-danger)_24%,var(--card-background-color))] ring-2',
+          danger && 'border-danger/70 bg-(--card-background-color) backdrop-blur-none',
         )}
         onPointerDown={e => e.stopPropagation()}
       >

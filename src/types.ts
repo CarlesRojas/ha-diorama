@@ -275,6 +275,9 @@ export type CardConfig = {
   // another area while a room is in view. Off, they all stay. The side
   // panel follows the room either way.
   filter_tiles?: boolean
+  // With false, a home of several floors shows no floor switch in its
+  // corner, and its floors are only reached by the stairs between them.
+  floor_switch?: boolean
   // The side panel's own section for the whole home, under its `name`,
   // Home by default: the tiles of its `entities`, in this order. With any
   // set, it is all the panel shows with the whole home in view, unless

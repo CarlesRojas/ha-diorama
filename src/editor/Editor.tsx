@@ -4,7 +4,7 @@ import DecorationPanel from '#/editor/DecorationPanel.tsx'
 import Scene, { type CameraHandle } from '#/scene/Scene.tsx'
 import Overlay from '#/editor/Overlay.tsx'
 import RoomInfo from '#/editor/RoomInfo.tsx'
-import { plainButton } from '#/editor/look.ts'
+import { field, plainButton } from '#/editor/look.ts'
 import Toolbar from '#/editor/Toolbar.tsx'
 import FloorPicker from '#/editor/FloorPicker.tsx'
 import { floorOf, floorsOf, floorView, levelName, stairLinks, pieceOutline, startFloor } from '#/lib/floors.ts'
@@ -1534,7 +1534,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
                 onKeyDown={e => {
                   if (e.key === 'Enter' && doomed && floorTyped.trim() === doomed.name) deleteFloor(doomed.id)
                 }}
-                className="border-danger/60 focus:ring-danger/30 h-9 rounded-lg border bg-(--card-background-color) px-2.5 text-[13px] text-(--primary-text-color) outline-none focus:ring-3"
+                className={cn(field, 'h-9')}
               />
             </label>
             <AlertDialogFooter>
