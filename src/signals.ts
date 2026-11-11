@@ -235,6 +235,56 @@ export function signalValues(hass: HomeAssistant, entityId: string): SignalValue
   }
 }
 
+// The power sensors on each device, by device id. A smart plug keeps what
+// it draws in a sensor of its own beside its switch, on the same device.
+// Worked out once for each registry Home Assistant hands over, since the
+// registry only changes when an entity is added or taken away, and a flat
+// of thousands of entities is not searched on every state change.
+const powerSensorsByRegistry = new WeakMap<object, Map<string, string[]>>()
+
+function powerSensors(hass: HomeAssistant, device: string): string[] {
+  const registry = hass.entities ?? {}
+  let byDevice = powerSensorsByRegistry.get(registry)
+  if (!byDevice) {
+    byDevice = new Map()
+    for (const entry of Object.values(registry)) {
+      if (!entry.device_id || !entry.entity_id.startsWith('sensor.')) continue
+      const list = byDevice.get(entry.device_id) ?? []
+      list.push(entry.entity_id)
+      byDevice.set(entry.device_id, list)
+    }
+    powerSensorsByRegistry.set(registry, byDevice)
+  }
+  // Which of a device's sensors read power is in their states, which come
+  // and go, so it is asked each time.
+  return (byDevice.get(device) ?? []).filter(id => hass.states[id]?.attributes.device_class === 'power')
+}
+
+// What a device draws, in watts, from the power sensor on the same device
+// as the entity, which is how a smart plug says it. A reading in kilowatts
+// is turned into watts. Undefined when the device has no such sensor, or it
+// has nothing to say just now.
+export function powerOf(hass: HomeAssistant, entityId: string): number | undefined {
+  const device = hass.entities?.[entityId]?.device_id
+  if (!device) return undefined
+  for (const id of powerSensors(hass, device)) {
+    const entity = hass.states[id]
+    const value = Number(entity.state)
+    if (entity.state === '' || !Number.isFinite(value)) continue
+    const unit = String(entity.attributes.unit_of_measurement ?? 'W')
+    return unit === 'kW' ? value * 1000 : unit === 'mW' ? value / 1000 : value
+  }
+  return undefined
+}
+
+// Watts the way a plug's display and its tile say them: a tenth of a watt
+// for a small draw, whole watts up to a kilowatt, and kilowatts past it.
+export function formatPower(watts: number) {
+  if (watts >= 1000) return `${(watts / 1000).toFixed(2)} kW`
+  if (watts >= 10) return `${Math.round(watts)} W`
+  return `${Math.max(watts, 0).toFixed(1)} W`
+}
+
 // The media player features a click needs, as Home Assistant numbers them.
 const MEDIA_PAUSE = 1
 const MEDIA_PLAY = 16384

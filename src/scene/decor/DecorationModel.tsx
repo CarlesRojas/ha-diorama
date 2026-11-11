@@ -18,6 +18,7 @@ import CountertopModel from '#/scene/decor/Countertop.tsx'
 import GardenModel from '#/scene/decor/Garden.tsx'
 import LightModel from '#/scene/decor/LightModel.tsx'
 import OutdoorModel from '#/scene/decor/Outdoor.tsx'
+import PlugModel from '#/scene/decor/Plug.tsx'
 import TechModel from '#/scene/decor/Tech.tsx'
 import { sameState, type ItemState } from '#/scene/decor/state.ts'
 import type { DecorationKind } from '#/decoration/catalog.ts'
@@ -91,7 +92,7 @@ const FAMILY_MODELS: Record<string, FamilyModel> = {
 // alive when they are on, a fire, a tree's lights, a feeder, a litter box
 // and a boiler, all live together, as do the desk gadgets, the small kitchen
 // appliances, the garden buildings and gates, and the printer, the router
-// and the wall tablet.
+// and the wall tablet, and the smart plug.
 const KIND_MODELS: Record<string, FamilyModel> = {
   fireplace: HearthModel,
   christmas_tree: HearthModel,
@@ -105,6 +106,7 @@ const KIND_MODELS: Record<string, FamilyModel> = {
   printer_3d: TechModel,
   router: TechModel,
   wall_tablet: TechModel,
+  smart_plug: PlugModel,
   toaster: CountertopModel,
   cooking_robot: CountertopModel,
   air_fryer: CountertopModel,

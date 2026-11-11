@@ -149,6 +149,7 @@ const BY_KIND: Record<string, IconDefinition> = {
   water_heater: faTemperatureHalf,
   printer_3d: faCube,
   router: faWifi,
+  smart_plug: faPlug,
   fireplace: faFireFlameCurved,
   christmas_tree: faTree,
   hot_tub: faHotTubPerson,

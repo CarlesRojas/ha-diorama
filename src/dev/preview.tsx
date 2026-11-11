@@ -10,7 +10,8 @@
 // many degrees. stand puts it on a piece of that kind at its defaults, so
 // &stand=kitchen_counter shows a sink let into a counter, and at moves it
 // that far along the piece. text is the state in words, as &text=heat, and
-// moisture a plant's soil moisture sensor reading, as &moisture=10.
+// moisture a plant's soil moisture sensor reading, as &moisture=10, and
+// power what a smart plug's power sensor reads in watts, as &power=42.
 // grow=width shows the model twice, as it is and with that parameter at its
 // largest, for checking that everything in it grows along. Drag to turn it,
 // scroll to zoom.
@@ -38,9 +39,21 @@ const params: Record<string, number> = {}
 const colors: Record<string, string> = {}
 for (const [key, value] of query) {
   if (
-    ['kind', 'variant', 'on', 'dark', 'compare', 'spread', 'yaw', 'pitch', 'stand', 'at', 'text', 'moisture'].includes(
-      key,
-    )
+    [
+      'kind',
+      'variant',
+      'on',
+      'dark',
+      'compare',
+      'spread',
+      'yaw',
+      'pitch',
+      'stand',
+      'at',
+      'text',
+      'moisture',
+      'power',
+    ].includes(key)
   )
     continue
   if (value.startsWith('#')) colors[key] = value
@@ -107,6 +120,7 @@ createRoot(root).render(
                   glow: [glow.r, glow.g, glow.b],
                   text: query.get('text') ?? undefined,
                   moisture: query.has('moisture') ? Number(query.get('moisture')) : undefined,
+                  power: query.has('power') ? Number(query.get('power')) : undefined,
                 }}
                 // Whatever stands on a standing desk goes up with it.
                 raise={

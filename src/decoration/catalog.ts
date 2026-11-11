@@ -114,6 +114,7 @@ const KIND_DOMAINS: Record<string, string[]> = {
   // says what it is doing, and a router through its connectivity.
   printer_3d: ['switch', 'sensor', 'binary_sensor'],
   router: ['binary_sensor', 'switch'],
+  smart_plug: ['switch'],
   // A tablet's screen is a light or a switch where its kiosk app makes it
   // one, and a player where it plays.
   wall_tablet: ['media_player', 'light', 'switch'],
@@ -2997,6 +2998,39 @@ export const DECORATION_KINDS: DecorationKind[] = [
         params: { size: 0.11 },
         colors: { body: '#f2f1ee', top: '#e2e0db' },
         materials: { body: 'matte', top: 'matte' },
+      },
+    ],
+  ),
+  kind(
+    'smart_plug',
+    'utility',
+    'Smart plug',
+    'wall',
+    // A plug in a wall socket, its middle at a socket's height to start
+    // with. Its LED lights while its switch is on. Cable runs the lead of
+    // whatever it powers down the wall and along the floor. The size is
+    // only the spot it takes on the plan: every style is its real size.
+    [{ ...size(0.1, 0.05, 0.3), hidden: true }, height(0.3, 0.1, 2), flag('cable', 'Cable', 1)],
+    { body: '#f4f3f0', socket: '#e4e2dd', plate: '#efede8', cable: '#f2f1ee', light: '#5fd08a' },
+    { body: 'matte', socket: 'matte', plate: 'matte', cable: 'matte', light: 'ceramic' },
+    TOGGLE,
+    [
+      // A round Schuko plug 5 cm across, standing 4.5 cm off its socket,
+      // with a ring of light round its face.
+      { id: 'round', label: 'Round Plug' },
+      {
+        id: 'block',
+        label: 'Mini Block',
+        // After the TP-Link Tapo P100: 51 by 72 mm and 40 mm deep, with a
+        // dot of light on its face.
+        colors: { body: '#f4f3f0', socket: '#e4e2dd', plate: '#efede8', cable: '#2a2b2d', light: '#4fa3ff' },
+      },
+      {
+        id: 'meter',
+        label: 'Meter Display',
+        // A taller plug with a small display over its socket, which shows
+        // what the plug's power sensor reads.
+        colors: { body: '#36393d', socket: '#4a4d52', plate: '#efede8', cable: '#2a2b2d', light: '#7fd3ff' },
       },
     ],
   ),

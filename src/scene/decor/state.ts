@@ -15,6 +15,8 @@ export type ItemState = {
   glow: [number, number, number]
   // Raw numeric reading, for models with a display.
   value?: number
+  // What a smart plug's device draws, in watts, from its power sensor.
+  power?: number
   // How wet a plant's soil is, 0 to 100, for a plant to wilt when it dries.
   moisture?: number
   // Raw state string, for enum devices.
@@ -37,6 +39,7 @@ export function sameState(a: ItemState | null, b: ItemState | null) {
     a.on !== b.on ||
     a.level !== b.level ||
     a.value !== b.value ||
+    a.power !== b.power ||
     a.moisture !== b.moisture ||
     a.text !== b.text ||
     a.presses !== b.presses ||
