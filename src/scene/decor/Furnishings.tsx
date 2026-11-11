@@ -108,25 +108,26 @@ export function Rug({
   )
 }
 
-// A round mirror in a slim ring, or a square one in a thin flat frame.
-// `s` is its diameter or its side.
-export function Mirror({ style, s, paint }: { style: string; s: number; paint: Paint }) {
-  if (style === 'square') {
-    const bar = Math.min(0.025, s * 0.05)
+// A round mirror in a slim ring, or a square or upright one in a thin flat
+// frame. `s` is its diameter or its width, and `tall` its height.
+export function Mirror({ style, s, tall = s, paint }: { style: string; s: number; tall?: number; paint: Paint }) {
+  if (style === 'square' || style === 'rect') {
+    const h = style === 'rect' ? tall : s
+    const bar = Math.min(0.025, Math.min(s, h) * 0.05)
     return (
       <group>
         <mesh position={[0, 0, 0.012]}>
-          <boxGeometry args={[s - bar, s - bar, 0.008]} />
+          <boxGeometry args={[s - bar, h - bar, 0.008]} />
           {paint('glass')}
         </mesh>
         {[-1, 1].map(k => (
           <group key={k}>
-            <mesh position={[0, (k * (s - bar)) / 2, 0.014]} castShadow>
+            <mesh position={[0, (k * (h - bar)) / 2, 0.014]} castShadow>
               <boxGeometry args={[s, bar, 0.028]} />
               {paint('frame')}
             </mesh>
             <mesh position={[(k * (s - bar)) / 2, 0, 0.014]} castShadow>
-              <boxGeometry args={[bar, s - bar * 2, 0.028]} />
+              <boxGeometry args={[bar, h - bar * 2, 0.028]} />
               {paint('frame')}
             </mesh>
           </group>
