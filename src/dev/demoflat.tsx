@@ -163,7 +163,12 @@ if (follow) {
   const moveTo = (room: string | null) => {
     const area = config.rooms?.find(r => r.id === room)
     states['sensor.alex_phone_area'].state = area ? DEMO_AREAS[area.area_id!].name : 'not_home'
-    for (const r of config.rooms ?? []) states[`binary_sensor.${r.id}_presence`].state = r.id === room ? 'on' : 'off'
+    const now = new Date().toISOString()
+    for (const r of config.rooms ?? []) {
+      const sensor = states[`binary_sensor.${r.id}_presence`]
+      const state = r.id === room ? 'on' : 'off'
+      if (sensor.state !== state) Object.assign(sensor, { state, last_changed: now, last_updated: now })
+    }
     element.hass = hass()
   }
   for (const room of [...(config.rooms ?? []).map(r => r.id), null]) {

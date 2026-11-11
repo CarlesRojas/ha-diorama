@@ -7,7 +7,7 @@ import { EDGE_FADE_MASK } from '#/theme.ts'
 import arrowLeft from '@phosphor-icons/core/assets/bold/arrow-left-bold.svg?raw'
 import { useEditorOpen } from '#/lib/editorOpen.ts'
 import { useEmptyClick } from '#/lib/emptyClick.ts'
-import { followedRoom, useFollow } from '#/lib/follow.ts'
+import { FOLLOW_ANYONE, followedRoom, useFollow, useLastDetected } from '#/lib/follow.ts'
 import { cardKey, keepRoom, lastRoom } from '#/lib/lastRoom.ts'
 import { usePreviewRoom } from '#/lib/previewRoom.ts'
 import { useRoomFilter } from '#/lib/roomFilter.ts'
@@ -81,7 +81,9 @@ export default function Card({ hass, config, panel = false, preview = false }: P
   // walk into, unless the card was touched in the last while. Never in the
   // edit dialog, nor under the fullscreen editor.
   const follow = preview ? undefined : thisScreen(config)?.follow
-  const touched = useFollow(followedRoom(hass, config, follow), !!follow && !paused, id => {
+  const lastDetected = useLastDetected(hass, config, follow?.who === FOLLOW_ANYONE)
+  const target = follow?.who === FOLLOW_ANYONE ? lastDetected : followedRoom(hass, config, follow)
+  const touched = useFollow(target, !!follow && !paused, id => {
     if (id === focused) return true
     const view = viewOf(id)
     if (!view || !camera.current) return false

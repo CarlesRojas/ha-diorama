@@ -7,7 +7,7 @@ import type { CardConfig, FollowConfig, HomeAssistant, RoomConfig } from '#/type
 //
 // - `me`, the person linked to whoever is logged in on the screen,
 // - a person, by their entity id,
-// - `anyone`, the only room whose presence sensor says someone is there.
+// - `anyone`, the room whose presence sensor last saw someone come in.
 //
 // A person's room comes from a sensor whose state names an area, as the
 // ones Bermuda or ESPresense make for a phone or a watch. It is looked for
@@ -97,17 +97,54 @@ export function followedSensor(hass: HomeAssistant, rooms: RoomConfig[], follow:
   return person ? sensorsOfPerson(hass, rooms, person)[0] : undefined
 }
 
+// When a room's presence sensor last changed, so the most recent of them
+// is the one that saw someone last.
+const changedAt = (hass: HomeAssistant, room: RoomConfig) =>
+  Date.parse(hass.states[room.presence?.entity ?? '']?.last_changed ?? '') || 0
+
+// Of these rooms, the one whose presence sensor turned on last.
+const latest = (hass: HomeAssistant, rooms: RoomConfig[]) =>
+  rooms.reduce<RoomConfig | undefined>(
+    (best, room) => (!best || changedAt(hass, room) > changedAt(hass, best) ? room : best),
+    undefined,
+  )
+
 // The room the card should be showing for a follow, or nothing when no one
-// is in a room it knows, or when more than one room has someone in it.
+// is in a room it knows. With anyone, the occupied room that saw someone
+// last.
 export function followedRoom(hass: HomeAssistant | null, config: CardConfig, follow?: FollowConfig): string | null {
   if (!hass || !follow) return null
   const rooms = config.rooms ?? []
-  if (follow.who === FOLLOW_ANYONE) {
-    const there = rooms.filter(room => occupied(hass, room))
-    return there.length === 1 ? there[0].id : null
-  }
+  if (follow.who === FOLLOW_ANYONE)
+    return (
+      latest(
+        hass,
+        rooms.filter(room => occupied(hass, room)),
+      )?.id ?? null
+    )
   const sensor = followedSensor(hass, rooms, follow)
   return (sensor && roomNamed(hass, rooms, sensor)?.id) || null
+}
+
+// The room someone was last seen walking into, for following anyone: it
+// changes only when a room's presence sensor turns on, never when one turns
+// off, so two people in two rooms do not send the camera back to the first
+// room when the second one leaves. Nothing while `on` is false.
+export function useLastDetected(hass: HomeAssistant | null, config: CardConfig, on: boolean): string | null {
+  const rooms = config.rooms ?? []
+  const there = on && hass ? rooms.filter(room => occupied(hass, room)) : []
+  const key = there.map(room => room.id).join(',')
+  const seen = useRef(new Set<string>())
+  const [last, setLast] = useState<string | null>(null)
+  useEffect(() => {
+    const fresh = there.filter(room => !seen.current.has(room.id))
+    seen.current = new Set(there.map(room => room.id))
+    if (hass && fresh.length) setLast(latest(hass, fresh)!.id)
+    if (!on) setLast(null)
+    // Only a change in which rooms are occupied is news.
+    // oxlint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, on])
+  return last
 }
 
 // How long the room must stay the same before the card flies there, so a
@@ -140,7 +177,7 @@ export function useFollow(room: string | null, active: boolean, go: (room: strin
   })
   useEffect(() => {
     if (!active) return
-    // Out of every room, or in more than one: the next room is news again.
+    // Out of every room: the next room is news again.
     if (!settled) {
       followed.current = null
       return

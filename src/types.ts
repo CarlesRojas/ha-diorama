@@ -288,8 +288,8 @@ export type ScreenConfig = {
 }
 
 // Who the card follows from room to room. `who` is `me`, the person of the
-// user logged in, a person's entity id, or `anyone`, the only room whose
-// presence sensor says someone is there. `sensor` names the sensor that
+// user logged in, a person's entity id, or `anyone`, the room whose
+// presence sensor last saw someone come in. `sensor` names the sensor that
 // says which area the person is in, when it is not found among the
 // entities of their trackers.
 export type FollowConfig = {

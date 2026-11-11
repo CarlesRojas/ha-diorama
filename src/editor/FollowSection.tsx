@@ -41,7 +41,7 @@ export function FollowSection({ hass, config, onChange, roomName }: Props) {
     { value: OFF, label: 'Off' },
     { value: FOLLOW_ME, label: me ? `Me (${name(me)})` : 'Me', detail: me ? undefined : 'No person is linked to you' },
     ...people.filter(id => id !== me).map(id => ({ value: id, label: name(id), keywords: id })),
-    { value: FOLLOW_ANYONE, label: 'Anyone', detail: 'The only room with someone in it' },
+    { value: FOLLOW_ANYONE, label: 'Anyone', detail: 'The room where someone was last detected' },
   ]
 
   const person = hass && follow ? followedPerson(hass, follow) : undefined
@@ -65,8 +65,8 @@ export function FollowSection({ hass, config, onChange, roomName }: Props) {
       withPresence === 0
         ? 'No room has a presence sensor yet. Set one under Presence for each room in the editor.'
         : nowRoom
-          ? `Someone is in ${roomName(nowRoom)} now.`
-          : 'No single room has someone in it now, so the view stays.'
+          ? `Someone was last detected in ${roomName(nowRoom)}.`
+          : 'No room has someone in it now, so the view stays.'
   } else if (follow) {
     status = !person
       ? 'No person is linked to the user logged in here.'
