@@ -154,6 +154,7 @@ export default function Scene({
           handle={cameraRef}
           onAway={onCameraAway}
           wheelZoom={wheelZoom}
+          floors={config.floors}
         />
         <Devices
           hass={hass}
@@ -190,6 +191,7 @@ export default function Scene({
             radius={radius}
             gap={gap}
             occupied={occupied(hass, room)}
+            floors={config.floors}
           />
         ))}
         {frame && (

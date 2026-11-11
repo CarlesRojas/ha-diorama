@@ -11,7 +11,7 @@ import { held } from '#/scene/drags.ts'
 import { flights } from '#/scene/flights.ts'
 import { fitView, frameRooms, sceneHeight } from '#/scene/framing.ts'
 import { multiTouchSince, sent } from '#/scene/touches.ts'
-import type { CameraView, DecorationConfig, RoomConfig } from '#/types.ts'
+import type { CameraView, DecorationConfig, FloorConfig, RoomConfig } from '#/types.ts'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, type RefObject } from 'react'
 import { MathUtils, Spherical, Vector3 } from 'three'
@@ -49,6 +49,7 @@ type Props = {
   // Told when the camera leaves the view it opened with, and when it is
   // back there.
   onAway?: (away: boolean) => void
+  floors?: FloorConfig[]
 }
 
 // How far the pointer has to come, in pixels, before a press is a drag.
@@ -125,6 +126,7 @@ export default function CameraRig({
   handle,
   onAway,
   wheelZoom = false,
+  floors,
 }: Props) {
   const camera = useThree(state => state.camera)
   const size = useThree(state => state.size)
@@ -195,8 +197,8 @@ export default function CameraRig({
     const aspect = size.width / size.height
     const height = sceneHeight(items)
     const { position, target } = saved
-      ? fitView(saved, shown, aspect, height, margin, true, spill, whole)
-      : frameRooms(shown, aspect, height, undefined, margin, true, spill, whole)
+      ? fitView(saved, shown, aspect, height, margin, true, spill, whole, floors)
+      : frameRooms(shown, aspect, height, undefined, margin, true, spill, whole, floors)
     return { position: triple(position), target: triple(target) }
   }
 
@@ -224,6 +226,8 @@ export default function CameraRig({
         homeMargin,
         true,
         spill,
+        undefined,
+        floors,
       )
       return { position: triple(whole.position), target: triple(whole.target) }
     }
@@ -239,6 +243,7 @@ export default function CameraRig({
       true,
       spill,
       signs,
+      floors,
     )
     return { position: triple(position), target: triple(target) }
   }

@@ -3,7 +3,7 @@ import { decorationKind, paramValue } from '#/decoration/catalog.ts'
 import { standHeight } from '#/decoration/surfaces.ts'
 import { elevationRange } from '#/geometry/elevation.ts'
 import { CEILING_HEIGHT_M, ROOM_SLAB_THICKNESS_M } from '#/theme.ts'
-import type { CameraView, DecorationConfig, RoomConfig } from '#/types.ts'
+import type { CameraView, DecorationConfig, FloorConfig, RoomConfig } from '#/types.ts'
 import { MathUtils, Vector3 } from 'three'
 
 export type Framing = {
@@ -66,6 +66,7 @@ export function frameRooms(
   center = false,
   spill = 1,
   whole: RoomConfig[] = [],
+  floors?: FloorConfig[],
 ): Framing {
   let minX = Infinity
   let minY = Infinity
@@ -102,7 +103,7 @@ export function frameRooms(
   const spills: number[] = []
   const floor = center ? rooms.flatMap(room => room.points) : [minX, maxX].flatMap(x => [minY, maxY].map(y => [x, y]))
   // Floors raised or sunk reach the box higher or lower.
-  const [low, high] = elevationRange([...rooms, ...whole])
+  const [low, high] = elevationRange([...rooms, ...whole], floors)
   const add = (points: number[][], by: number) => {
     for (const [x, y] of points)
       for (const z of [low - ROOM_SLAB_THICKNESS_M, height + high]) {
@@ -172,6 +173,7 @@ export function fitView(
   closeIn = false,
   spill = 1,
   whole: RoomConfig[] = [],
+  floors?: FloorConfig[],
 ): Framing {
   const position = new Vector3(...view.position)
   const target = new Vector3(...view.target)
@@ -181,7 +183,7 @@ export function fitView(
   const tanV = Math.tan(MathUtils.degToRad(CAMERA_FOV_DEG) / 2) / margin
   const tanH = tanV * aspect
 
-  const [low, high] = elevationRange([...rooms, ...whole])
+  const [low, high] = elevationRange([...rooms, ...whole], floors)
   let fits = true
   const corner = new Vector3()
   for (const room of [...rooms, ...whole]) {
@@ -196,5 +198,5 @@ export function fitView(
   }
   if (fits && !closeIn) return { position, target }
   const from = position.clone().sub(target)
-  return frameRooms(rooms, aspect, height, [from.x, from.y, from.z], margin, closeIn, spill, whole)
+  return frameRooms(rooms, aspect, height, [from.x, from.y, from.z], margin, closeIn, spill, whole, floors)
 }
