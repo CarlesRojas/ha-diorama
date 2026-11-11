@@ -3007,10 +3007,11 @@ export const DECORATION_KINDS: DecorationKind[] = [
     'Smart plug',
     'wall',
     // A plug in a wall socket, its middle at a socket's height to start
-    // with. Its LED lights while its switch is on. Cable runs the lead of
-    // whatever it powers down the wall and along the floor. The size is
-    // only the spot it takes on the plan: every style is its real size.
-    [{ ...size(0.1, 0.05, 0.3), hidden: true }, height(0.3, 0.1, 2), flag('cable', 'Cable', 1)],
+    // with. Its LED lights while its switch is on. Cable, off to start
+    // with, runs the lead of whatever it powers down the wall and along the
+    // floor. The size is only the spot it takes on the plan: every style is
+    // its real size.
+    [{ ...size(0.1, 0.05, 0.3), hidden: true }, height(0.3, 0.1, 2), flag('cable', 'Cable')],
     { body: '#f4f3f0', socket: '#e4e2dd', plate: '#efede8', cable: '#f2f1ee', light: '#5fd08a' },
     { body: 'matte', socket: 'matte', plate: 'matte', cable: 'matte', light: 'ceramic' },
     TOGGLE,

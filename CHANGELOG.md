@@ -11,7 +11,7 @@ moves that section under the new version and uses it as the release notes.
 
 ### Added
 
-- A smart plug in three styles that lights up while its switch is on, with the lead of what it powers down the wall, and a meter style that shows in watts what the plug's power sensor reads, which the switch's tile now shows too.
+- A smart plug in three styles that lights up while its switch is on, can show the lead of what it powers running down the wall, and a meter style that shows in watts what the plug's power sensor reads, which the switch's tile now shows too.
 - A piano in three styles, a desk lamp in two, three more ceiling lights, and a switch to hang the sideboard on the wall at any height.
 - Stairs that climb a full storey or a few steps, including a floating style with only its treads, a railing in steel, glass or oak spindles for the edge of a raised floor, a 3D printer that lights its chamber while it prints, a router, a wall tablet that shows a dashboard, a sim racing cockpit, a driveway gate that opens with its cover, a terrace door whose two leaves both swing open, and a Hue style tilted ring table lamp.
 - Plants, vases, books and other small pieces can stand on a wall shelf, and a plant can stand in for its sensors or Home Assistant plant, wilting and yellowing when its soil runs dry.
