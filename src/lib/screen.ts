@@ -1,9 +1,10 @@
 import type { CardConfig, ScreenConfig } from '#/types.ts'
 
 // Each screen the card is seen on, like a phone or a tablet on the wall,
-// can have its own sizes in the card's config. A screen is known by an id
-// it is given the first time and keeps in its own storage, so it stays the
-// same across dashboards and reloads, and differs from every other screen.
+// can have its own sizes, and its own follow, in the card's config. A screen
+// is known by an id it is given the first time and keeps in its own storage,
+// so it stays the same across dashboards and reloads, and differs from every
+// other screen.
 const KEY = 'diorama-screen'
 
 let id: string | null = null
@@ -31,16 +32,17 @@ export function screenName(): string {
   return Math.min(screen.width, screen.height) < 600 ? 'Phone' : 'Tablet'
 }
 
-// This screen's own sizes, if it has any.
+// This screen's own settings, if it has any.
 export const thisScreen = (config: CardConfig): ScreenConfig | undefined => config.screens?.[screenId()]
 
-// The config with this screen's sizes changed, leaving out what is empty so
+// The config with this screen's settings changed, leaving out what is empty so
 // the YAML stays as short as it was.
 export function withScreen(config: CardConfig, change: Partial<ScreenConfig>): CardConfig {
   const { screens = {}, ...rest } = config
   const { [screenId()]: before, ...others } = screens
   const next: ScreenConfig = { name: before?.name ?? screenName(), ...before, ...change }
-  for (const key of ['width', 'height'] as const) if (next[key] === undefined) delete next[key]
-  const all = next.width === undefined && next.height === undefined ? others : { ...others, [screenId()]: next }
+  for (const key of ['width', 'height', 'follow'] as const) if (next[key] === undefined) delete next[key]
+  const empty = next.width === undefined && next.height === undefined && next.follow === undefined
+  const all = empty ? others : { ...others, [screenId()]: next }
   return Object.keys(all).length ? { ...rest, screens: all } : rest
 }

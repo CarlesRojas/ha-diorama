@@ -7,9 +7,11 @@ import { EDGE_FADE_MASK } from '#/theme.ts'
 import arrowLeft from '@phosphor-icons/core/assets/bold/arrow-left-bold.svg?raw'
 import { useEditorOpen } from '#/lib/editorOpen.ts'
 import { useEmptyClick } from '#/lib/emptyClick.ts'
+import { followedRoom, useFollow } from '#/lib/follow.ts'
 import { cardKey, keepRoom, lastRoom } from '#/lib/lastRoom.ts'
 import { usePreviewRoom } from '#/lib/previewRoom.ts'
 import { useRoomFilter } from '#/lib/roomFilter.ts'
+import { thisScreen } from '#/lib/screen.ts'
 import { FpsBadge, type FpsTicks } from '#/scene/FpsMeter.tsx'
 import Scene, { type CameraHandle } from '#/scene/Scene.tsx'
 import type { CameraView, CardConfig, HomeAssistant } from '#/types.ts'
@@ -75,12 +77,34 @@ export default function Card({ hass, config, panel = false, preview = false }: P
     setFocus(null)
     camera.current?.reset()
   }
+  // On a screen set to follow someone, the camera flies to the room they
+  // walk into, unless the card was touched in the last while. Never in the
+  // edit dialog, nor under the fullscreen editor.
+  const follow = preview ? undefined : thisScreen(config)?.follow
+  const touched = useFollow(followedRoom(hass, config, follow), !!follow && !paused, id => {
+    if (id === focused) return true
+    const view = viewOf(id)
+    if (!view || !camera.current) return false
+    setFocus(id)
+    camera.current.flyTo(view)
+    return true
+  })
   // The back button, a phone's own too, takes a room in view back to the
   // whole home. Not in the edit dialog, whose back closes it.
-  useBackToHome(focused !== null, goHome, !preview)
+  useBackToHome(
+    focused !== null,
+    () => {
+      touched()
+      goHome()
+    },
+    !preview,
+  )
   // So does a click on empty space anywhere on the dashboard, like the side
   // panel around its tiles or the gaps between cards.
-  useEmptyClick(focused !== null && !preview, goHome)
+  useEmptyClick(focused !== null && !preview, () => {
+    touched()
+    goHome()
+  })
   const showRoom = (asked: string, through?: string[]) => {
     // A press on a door or a window in the wall of the focused room goes
     // through it, to the room on its other side, when that one has a view.
@@ -156,7 +180,12 @@ export default function Card({ hass, config, panel = false, preview = false }: P
     <ha-card style={{ background: 'none', border: 'none', boxShadow: 'none', height: fill ? '100%' : undefined }}>
       {/* The card's shape follows its own width, not the window's: a card
         in a narrow column on a wide screen is as narrow as one on a phone. */}
-      <div className={cn('@container w-full', fill && 'h-full')}>
+      <div
+        className={cn('@container w-full', fill && 'h-full')}
+        onPointerDownCapture={touched}
+        onWheelCapture={touched}
+        onKeyDownCapture={touched}
+      >
         <div
           className={cn(
             'relative w-full overflow-hidden',
