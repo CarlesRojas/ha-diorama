@@ -17,6 +17,7 @@ import {
   kelvinToRgb,
   levelChannels,
   levelValues,
+  powerOf,
   signalValues,
 } from '#/signals.ts'
 import { LIGHT_GLOW_COLOR } from '#/theme.ts'
@@ -330,8 +331,11 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
     const tryState = tried ? tries?.[item.id] : undefined
     const read =
       device && hass ? itemState(hass, device, guesses, presses, item.light_color, item.light_brightness) : null
+    // Only a smart plug shows what its device draws, so nothing else is drawn
+    // again every time the reading moves.
+    const metered = read && item.kind === 'smart_plug' ? { ...read, power: powerOf(hass!, device!.entity_id) } : read
     const flip = !!item.invert && !!kind && invertible(kind)
-    const real = flip ? inverted(read) : read
+    const real = flip ? inverted(metered) : metered
     // What the device says that trying has no control for, like a reading,
     // is kept.
     const state = kind && tryState ? { ...real, ...tryItemState(kind, tryState, item.light_color) } : real

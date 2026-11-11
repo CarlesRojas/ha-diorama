@@ -1,3 +1,4 @@
+import { formatPower, powerOf } from '#/signals.ts'
 import { callService, type TileEnv } from '#/tiles/actions.ts'
 import { ConfirmTile } from '#/tiles/cards/Confirm.tsx'
 import { FillTile, PositionTile } from '#/tiles/cards/Fill.tsx'
@@ -21,7 +22,8 @@ const OFF = ['off', 'standby', 'unavailable', 'unknown']
 // too. A light that dims, with the brightness feature, is its brightness
 // across the whole tile, a fan with the speed feature its speed, and a
 // valve with the position feature how far it is open, and a humidifier
-// with the humidity slider the humidity it holds the room at. A group,
+// with the humidity slider the humidity it holds the room at. A switch on
+// a device with a power sensor, a smart plug, says what it draws. A group,
 // like a light group, says how many of its members are on. With confirm
 // it turns on or off only on a second tap, and has no other control. A
 // player, like a TV's, is offered only that way.
@@ -55,7 +57,15 @@ export default function Toggle({ env, config }: Props) {
   // What it is at beside the word, as Home Assistant says it: how humid
   // the room is for a humidifier, and how far open a valve is.
   const reading = numberOf(entity, valve ? 'current_position' : domain === 'humidifier' ? 'current_humidity' : '')
-  const state = reading !== null ? `${word} · ${Math.round(reading)}%` : word
+  // A smart plug that is on says what it draws, from the power sensor on its
+  // device.
+  const watts = domain === 'switch' && on ? powerOf(env.hass, config.entity!) : undefined
+  const state =
+    reading !== null
+      ? `${word} · ${Math.round(reading)}%`
+      : watts !== undefined
+        ? `${word} · ${formatPower(watts)}`
+        : word
   const hs = entity?.attributes.hs_color
   // A light in a white shines in its kelvin, though it also gives a hue.
   const kelvin = entity && inWhite(entity) ? numberOf(entity, 'color_temp_kelvin') : null

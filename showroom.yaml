@@ -744,125 +744,132 @@ rooms:
       - [67.9, 1.8]
       - [67.9, 3.2]
       - [66.05, 3.2]
+  - id: smart_plug
+    name: "Smart plug"
+    points:
+      - [66.05, 3.6]
+      - [68.35, 3.6]
+      - [68.35, 5]
+      - [66.05, 5]
   - id: hot_tub
     name: "Hot tub"
     points:
-      - [66.05, 3.6]
-      - [71.35, 3.6]
-      - [71.35, 6.6]
-      - [66.05, 6.6]
+      - [66.05, 5.4]
+      - [71.35, 5.4]
+      - [71.35, 8.4]
+      - [66.05, 8.4]
   - id: louvred_pergola
     name: "Louvred pergola"
     points:
-      - [66.05, 7]
-      - [74.55, 7]
-      - [74.55, 11]
-      - [66.05, 11]
+      - [66.05, 8.8]
+      - [74.55, 8.8]
+      - [74.55, 12.8]
+      - [66.05, 12.8]
   - id: sauna
     name: "Sauna"
     points:
-      - [66.05, 11.4]
-      - [71.75, 11.4]
-      - [71.75, 14.6]
-      - [66.05, 14.6]
+      - [66.05, 13.2]
+      - [71.75, 13.2]
+      - [71.75, 16.4]
+      - [66.05, 16.4]
   - id: pool
     name: "Pool"
     points:
-      - [66.05, 15]
-      - [75.15, 15]
-      - [75.15, 18.5]
-      - [66.05, 18.5]
+      - [66.05, 16.8]
+      - [75.15, 16.8]
+      - [75.15, 20.3]
+      - [66.05, 20.3]
   - id: sprinkler
     name: "Sprinkler"
     points:
-      - [66.05, 18.9]
-      - [75.05, 18.9]
-      - [75.05, 22.9]
-      - [66.05, 22.9]
+      - [66.05, 20.7]
+      - [75.05, 20.7]
+      - [75.05, 24.7]
+      - [66.05, 24.7]
   - id: driveway_gate
     name: "Driveway gate"
     points:
-      - [66.05, 23.3]
-      - [75.15, 23.3]
-      - [75.15, 24.7]
-      - [66.05, 24.7]
+      - [66.05, 25.1]
+      - [75.15, 25.1]
+      - [75.15, 26.5]
+      - [66.05, 26.5]
   - id: crib
     name: "Crib"
     points:
-      - [66.05, 25.1]
-      - [71.8, 25.1]
-      - [71.8, 26.75]
-      - [66.05, 26.75]
+      - [66.05, 26.9]
+      - [71.8, 26.9]
+      - [71.8, 28.55]
+      - [66.05, 28.55]
   - id: bassinet
     name: "Bassinet"
     points:
-      - [66.05, 27.15]
-      - [70.6, 27.15]
-      - [70.6, 28.65]
-      - [66.05, 28.65]
+      - [76.15, 0]
+      - [80.7, 0]
+      - [80.7, 1.5]
+      - [76.15, 1.5]
   - id: loft_bed
     name: "Loft bed"
     points:
-      - [76.15, 0]
-      - [81.75, 0]
-      - [81.75, 1.95]
-      - [76.15, 1.95]
+      - [76.15, 1.9]
+      - [81.75, 1.9]
+      - [81.75, 3.85]
+      - [76.15, 3.85]
   - id: kids_sofa
     name: "Kids sofa"
     points:
-      - [76.15, 2.35]
-      - [81.25, 2.35]
-      - [81.25, 4.05]
-      - [76.15, 4.05]
+      - [76.15, 4.25]
+      - [81.25, 4.25]
+      - [81.25, 5.95]
+      - [76.15, 5.95]
   - id: rocking_chair
     name: "Rocking chair"
     points:
-      - [76.15, 4.45]
-      - [80.4, 4.45]
-      - [80.4, 6.35]
       - [76.15, 6.35]
+      - [80.4, 6.35]
+      - [80.4, 8.25]
+      - [76.15, 8.25]
   - id: sound_machine
     name: "Sound machine"
     points:
-      - [76.15, 6.75]
-      - [78.5, 6.75]
-      - [78.5, 8.15]
-      - [76.15, 8.15]
+      - [76.15, 8.65]
+      - [78.5, 8.65]
+      - [78.5, 10.05]
+      - [76.15, 10.05]
   - id: light_string
     name: "String lights"
     points:
-      - [76.15, 8.55]
-      - [87.15, 8.55]
-      - [87.15, 9.95]
-      - [76.15, 9.95]
+      - [76.15, 10.45]
+      - [87.15, 10.45]
+      - [87.15, 11.85]
+      - [76.15, 11.85]
   - id: light_fan
     name: "Ceiling fan light"
     points:
-      - [76.15, 10.35]
-      - [81.65, 10.35]
-      - [81.65, 12.65]
-      - [76.15, 12.65]
+      - [76.15, 12.25]
+      - [81.65, 12.25]
+      - [81.65, 14.55]
+      - [76.15, 14.55]
   - id: bath_fan
     name: "Bathroom fan"
     points:
-      - [76.15, 13.05]
-      - [79, 13.05]
-      - [79, 14.45]
-      - [76.15, 14.45]
+      - [76.15, 14.95]
+      - [79, 14.95]
+      - [79, 16.35]
+      - [76.15, 16.35]
   - id: chest_freezer
     name: "Chest freezer"
     points:
-      - [76.15, 14.85]
-      - [79.1, 14.85]
-      - [79.1, 16.5]
-      - [76.15, 16.5]
+      - [76.15, 16.75]
+      - [79.1, 16.75]
+      - [79.1, 18.4]
+      - [76.15, 18.4]
   - id: dog_kennel
     name: "Dog kennel"
     points:
-      - [76.15, 16.9]
-      - [80.35, 16.9]
-      - [80.35, 18.8]
       - [76.15, 18.8]
+      - [80.35, 18.8]
+      - [80.35, 20.7]
+      - [76.15, 20.7]
 decorations:
   - id: light_ceiling_focus
     kind: light_ceiling
@@ -2065,223 +2072,241 @@ decorations:
     room: router
     position: [67.35, 2.5]
     variant: mesh
+  - id: smart_plug_round
+    kind: smart_plug
+    room: smart_plug
+    position: [66.6, 3.6]
+    rotation: 180
+    variant: round
+  - id: smart_plug_block
+    kind: smart_plug
+    room: smart_plug
+    position: [67.2, 3.6]
+    rotation: 180
+    variant: block
+  - id: smart_plug_meter
+    kind: smart_plug
+    room: smart_plug
+    position: [67.8, 3.6]
+    rotation: 180
+    variant: meter
   - id: hot_tub_spa
     kind: hot_tub
     room: hot_tub
-    position: [67.55, 5.1]
+    position: [67.55, 6.9]
     variant: spa
   - id: hot_tub_barrel
     kind: hot_tub
     room: hot_tub
-    position: [69.95, 5.1]
+    position: [69.95, 6.9]
     variant: barrel
   - id: louvred_pergola_alu
     kind: louvred_pergola
     room: louvred_pergola
-    position: [68.3, 9]
+    position: [68.3, 10.8]
     variant: alu
   - id: louvred_pergola_timber
     kind: louvred_pergola
     room: louvred_pergola
-    position: [72.3, 9]
+    position: [72.3, 10.8]
     variant: timber
   - id: sauna_barrel
     kind: sauna
     room: sauna
-    position: [67.55, 13]
+    position: [67.55, 14.8]
     variant: barrel
   - id: sauna_cabin
     kind: sauna
     room: sauna
-    position: [70.15, 13]
+    position: [70.15, 14.8]
     variant: cabin
   - id: pool_deck
     kind: pool
     room: pool
-    position: [68.55, 16.75]
+    position: [68.55, 18.55]
     variant: deck
   - id: pool_frame
     kind: pool
     room: pool
-    position: [72.85, 16.75]
+    position: [72.85, 18.55]
     variant: frame
   - id: sprinkler_rotor
     kind: sprinkler
     room: sprinkler
-    position: [68.05, 20.9]
+    position: [68.05, 22.7]
     variant: rotor
   - id: sprinkler_oscillating
     kind: sprinkler
     room: sprinkler
-    position: [71.3, 20.9]
+    position: [71.3, 22.7]
     variant: oscillating
   - id: sprinkler_drip
     kind: sprinkler
     room: sprinkler
-    position: [73.8, 20.9]
+    position: [73.8, 22.7]
     variant: drip
   - id: driveway_gate_swing
     kind: driveway_gate
     room: driveway_gate
-    position: [68.35, 24]
+    position: [68.35, 25.8]
     variant: swing
   - id: driveway_gate_sliding
     kind: driveway_gate
     room: driveway_gate
-    position: [72.65, 24]
+    position: [72.65, 25.8]
     variant: sliding
   - id: crib_slatted
     kind: crib
     room: crib
-    position: [67.18, 25.92]
+    position: [67.18, 27.73]
     variant: slatted
   - id: crib_panel
     kind: crib
     room: crib
-    position: [68.93, 25.92]
+    position: [68.93, 27.73]
     variant: panel
   - id: crib_house
     kind: crib
     room: crib
-    position: [70.68, 25.92]
+    position: [70.68, 27.73]
     variant: house
   - id: bassinet_woven
     kind: bassinet
     room: bassinet
-    position: [66.97, 27.9]
+    position: [77.07, 0.75]
     variant: woven
   - id: bassinet_bedside
     kind: bassinet
     room: bassinet
-    position: [68.32, 27.9]
+    position: [78.42, 0.75]
     variant: bedside
   - id: bassinet_cradle
     kind: bassinet
     room: bassinet
-    position: [69.67, 27.9]
+    position: [79.77, 0.75]
     variant: cradle
   - id: loft_bed_pine
     kind: loft_bed
     room: loft_bed
-    position: [77.68, 0.98]
+    position: [77.68, 2.88]
     variant: pine
   - id: loft_bed_desk
     kind: loft_bed
     room: loft_bed
-    position: [80.22, 0.98]
+    position: [80.22, 2.88]
     variant: desk
   - id: kids_sofa_blocks
     kind: kids_sofa
     room: kids_sofa
-    position: [77.4, 3.2]
+    position: [77.4, 5.1]
     variant: blocks
   - id: kids_sofa_mini
     kind: kids_sofa
     room: kids_sofa
-    position: [79.1, 3.2]
+    position: [79.1, 5.1]
     variant: mini
   - id: kids_sofa_bean
     kind: kids_sofa
     room: kids_sofa
-    position: [80.4, 3.2]
+    position: [80.4, 5.1]
     variant: bean
   - id: rocking_chair_windsor
     kind: rocking_chair
     room: rocking_chair
-    position: [76.97, 5.4]
+    position: [76.97, 7.3]
     variant: windsor
   - id: rocking_chair_glider
     kind: rocking_chair
     room: rocking_chair
-    position: [78.18, 5.4]
+    position: [78.18, 7.3]
     variant: glider
   - id: rocking_chair_recliner
     kind: rocking_chair
     room: rocking_chair
-    position: [79.47, 5.4]
+    position: [79.47, 7.3]
     variant: recliner
   - id: sound_machine_nightlight
     kind: sound_machine
     room: sound_machine
-    position: [76.72, 7.45]
+    position: [76.72, 9.35]
     variant: nightlight
   - id: sound_machine_pixel
     kind: sound_machine
     room: sound_machine
-    position: [77.35, 7.45]
+    position: [77.35, 9.35]
     variant: pixel
   - id: sound_machine_cube
     kind: sound_machine
     room: sound_machine
-    position: [77.95, 7.45]
+    position: [77.95, 9.35]
     variant: cube
   - id: light_string_festoon
     kind: light_string
     room: light_string
-    position: [78.15, 9.25]
+    position: [78.15, 11.15]
     variant: festoon
   - id: light_string_fairy
     kind: light_string
     room: light_string
-    position: [81.65, 9.25]
+    position: [81.65, 11.15]
     variant: fairy
   - id: light_string_globes
     kind: light_string
     room: light_string
-    position: [85.15, 9.25]
+    position: [85.15, 11.15]
     variant: globes
   - id: light_fan_bowl
     kind: light_fan
     room: light_fan
-    position: [77.3, 11.5]
+    position: [77.3, 13.4]
     variant: bowl
   - id: light_fan_disc
     kind: light_fan
     room: light_fan
-    position: [79, 11.5]
+    position: [79, 13.4]
     variant: disc
   - id: light_fan_globe
     kind: light_fan
     room: light_fan
-    position: [80.6, 11.5]
+    position: [80.6, 13.4]
     variant: globe
   - id: bath_fan_grille
     kind: bath_fan
     room: bath_fan
-    position: [76.8, 13.75]
+    position: [76.8, 15.65]
     variant: grille
   - id: bath_fan_light
     kind: bath_fan
     room: bath_fan
-    position: [77.6, 13.75]
+    position: [77.6, 15.65]
     variant: light
   - id: bath_fan_round
     kind: bath_fan
     room: bath_fan
-    position: [78.37, 13.75]
+    position: [78.37, 15.65]
     variant: round
   - id: chest_freezer_white
     kind: chest_freezer
     room: chest_freezer
-    position: [77.1, 15.68]
+    position: [77.1, 17.58]
     variant: white
   - id: chest_freezer_compact
     kind: chest_freezer
     room: chest_freezer
-    position: [78.33, 15.68]
+    position: [78.33, 17.58]
     variant: compact
   - id: dog_kennel_house
     kind: dog_kennel
     room: dog_kennel
-    position: [77, 17.85]
+    position: [77, 19.75]
     variant: house
   - id: dog_kennel_crate
     kind: dog_kennel
     room: dog_kennel
-    position: [78.15, 17.85]
+    position: [78.15, 19.75]
     variant: crate
   - id: dog_kennel_table
     kind: dog_kennel
     room: dog_kennel
-    position: [79.4, 17.85]
+    position: [79.4, 19.75]
     variant: table

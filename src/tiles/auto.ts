@@ -73,6 +73,7 @@ const KIND_ICONS: Record<string, string> = {
   pc_tower: 'ph:desktop',
   printer_3d: 'ph:cube',
   router: 'ph:wifi-high',
+  smart_plug: 'ph:plug',
   fan_ceiling: 'ph:fan',
   fan_floor: 'ph:fan',
   air_purifier: 'ph:wind',
