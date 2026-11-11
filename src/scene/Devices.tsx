@@ -501,7 +501,10 @@ export default function Devices({
             raise={raise(item)}
             onClick={(climb ?? onClick) && h.click}
             onOpen={onOpen && h.open}
-            exact={!device && !onPick && !tried}
+            // A flight to another floor takes a press near it too, as a
+            // piece with a device does, since a press easily lands between
+            // the treads of an open flight.
+            exact={!device && !onPick && !tried && !climb}
             onDrag={drag && h.drag}
             passDrag={pass && h.pass}
           />
