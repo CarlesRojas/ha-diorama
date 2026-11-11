@@ -454,12 +454,6 @@ export default function CardPanel({ hass, config, onChange, opening, onOpen }: P
         </div>
       </Section>
 
-      {rooms.length > 0 && (
-        <Section title="Follow someone" subtitle="The view goes to the room they are in.">
-          <FollowSection hass={hass} config={config} onChange={onChange} roomName={room => roomName(hass, room)} />
-        </Section>
-      )}
-
       <Section title="Side panel">
         <div className={cn(group, 'gap-0 py-0')}>
           <label className="flex cursor-pointer items-center justify-between gap-4 py-2.5">
@@ -558,6 +552,12 @@ export default function CardPanel({ hass, config, onChange, opening, onOpen }: P
               )
             })}
           </div>
+        </Section>
+      )}
+
+      {rooms.length > 0 && (
+        <Section title="Follow someone" subtitle="The view goes to the room they are in.">
+          <FollowSection hass={hass} config={config} onChange={onChange} roomName={room => roomName(hass, room)} />
         </Section>
       )}
 

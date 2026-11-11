@@ -95,11 +95,11 @@ export function FollowSection({ hass, config, onChange, roomName }: Props) {
       {follow && follow.who !== FOLLOW_ANYONE && (
         <label className="border-separator flex items-center justify-between gap-4 border-t py-2.5">
           <span className="flex min-w-0 flex-col">
-            <span className="text-[13px]">Room sensor</span>
-            <span className="text-label-2 text-xs">Says which area they are in</span>
+            <span className="text-[13px]">Their location</span>
+            <span className="text-label-2 text-xs">From their phone or watch, like Bermuda's area sensor</span>
           </span>
           <Select
-            aria-label="Room sensor"
+            aria-label="Their location"
             className="w-44 shrink-0"
             value={follow.sensor ?? AUTO}
             options={sensorOptions}
