@@ -23,6 +23,7 @@ moves that section under the new version and uses it as the release notes.
 - A room can take a presence sensor, and while someone is in it its floor is seen through a filter in a color of your choice, a soft darkening to start with.
 - A piece can be set to only show its device's state, so a click on it opens the device's dialog instead of switching it.
 - A curtain can be a single panel that opens to the left or to the right.
+- A door can be only its frame, with no leaf, for an open doorway between two rooms.
 
 ### Changed
 
