@@ -10,6 +10,7 @@ import {
   ROOM_ELEVATION_MIN_M,
   ROOM_ELEVATION_STEP_M,
 } from '#/theme.ts'
+import type { Floor } from '#/lib/floors.ts'
 import type { Area, DecorationConfig, HomeAssistant, RoomConfig } from '#/types.ts'
 import { entityName } from '#/devices/catalog.ts'
 import { PRESENCE_COLOR, PRESENCE_STRENGTH } from '#/scene/presence.ts'
@@ -21,8 +22,16 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
 type Props = {
   room: RoomConfig
+  // The rooms on the room's floor, and every room of the home, since an
+  // area stands for one room whatever floor it is on.
   rooms: RoomConfig[]
+  everyRoom?: RoomConfig[]
   areas: Area[]
+  // The floors of a home with more than one, and what moves the room to
+  // another of them.
+  floors?: Floor[]
+  floorId?: string | null
+  onAssignFloor?: (roomId: string, floorId: string) => void
   onRename: (id: string, name: string | undefined) => void
   onRenameDone: () => void
   onAssignArea: (roomId: string, areaId: string | undefined) => void
@@ -57,7 +66,11 @@ const cameraButton = plainButton
 export default function RoomInfo({
   room,
   rooms,
+  everyRoom = rooms,
   areas,
+  floors,
+  floorId,
+  onAssignFloor,
   onRename,
   onRenameDone,
   onAssignArea,
@@ -79,7 +92,7 @@ export default function RoomInfo({
   const accent = EDITOR_TINT_COLOR
   const index = rooms.findIndex(r => r.id === room.id)
   const sorted = [...areas].sort((a, b) => a.name.localeCompare(b.name))
-  const used = new Map(rooms.filter(r => r.area_id).map(r => [r.area_id!, r.id]))
+  const used = new Map(everyRoom.filter(r => r.area_id).map(r => [r.area_id!, r.id]))
   const swatch = (
     <span
       className="ring-fill-strong size-3 shrink-0 rounded-full ring-2"
@@ -142,6 +155,17 @@ export default function RoomInfo({
             onBlur={onRenameDone}
           />
         </label>
+        {floors && floorId && onAssignFloor && (
+          <label className={cn(row, 'grid-cols-[96px_1fr]')}>
+            Floor
+            <Select
+              aria-label="Floor"
+              value={floorId}
+              options={[...floors].reverse().map(f => ({ value: f.id, label: f.name }))}
+              onChange={v => onAssignFloor(room.id, v)}
+            />
+          </label>
+        )}
         <label className={cn(row, 'grid-cols-[96px_1fr]')}>
           Area
           <Select

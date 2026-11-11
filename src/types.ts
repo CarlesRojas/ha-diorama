@@ -74,16 +74,21 @@ export type CameraView = {
   target: [number, number, number]
 }
 
+// A floor of the home, one storey. A card with more than one shows one
+// floor at a time. `level` orders them, 0 the ground floor, 1 the one above
+// it and -1 a basement, as Home Assistant numbers its own floors.
 export type FloorConfig = {
   id: string
-  name: string
-  elevation: number
+  name?: string
+  level?: number
 }
 
 export type RoomConfig = {
   id: string
   name?: string
   area_id?: string
+  // The floor of the home it is on, by id. A room that names none, or one
+  // the card does not have, is on the floor the card opens on.
   floor_id?: string
   points: Point[]
   radius?: number
@@ -92,7 +97,6 @@ export type RoomConfig = {
   // negative, in meters: a raised platform, a step or a sunken living room.
   // Everything in the room stands on it.
   elevation?: number
-  thickness?: number
   // A sensor that says someone is in the room. While it does, the floor is
   // seen through a filter of `color`, black by default, laid over it at
   // `strength`, from 0 to 1.
@@ -198,6 +202,9 @@ export type DecorationConfig = {
   light_brightness?: number
   // Which of the kind's styles it is drawn in. The kind's first when absent.
   variant?: string
+  // Set by the card, never saved: a flight of stairs seen from the floor it
+  // leads up to is drawn this far below that floor, so its top meets it.
+  below?: number
 }
 
 // A 3D model imported into the editor's catalog, by id. Pieces placed from
@@ -224,6 +231,8 @@ export type ModelConfig = {
 
 export type CardConfig = {
   type: string
+  // The floors of the home, for a home of more than one. Without them, or
+  // with one, every room is on the same floor.
   floors?: FloorConfig[]
   rooms?: RoomConfig[]
   devices?: DeviceConfig[]

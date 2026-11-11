@@ -15,7 +15,8 @@
 // `first=device` has a click on a device act on it from any room;
 // `mobile=1:1` gives the card that aspect ratio while it is narrow, and 16:9
 // otherwise; `frame=living,kitchen` has the view of the whole home zoom in
-// on those rooms.
+// on those rooms. `single` leaves out the first floor and the floors with it,
+// so the card is one with no floors, as every card was before them.
 // A click on a piece flips its entity, the way Home Assistant would. A cover
 // sent to a position runs there at a tenth of its travel every half second.
 import { setMerging } from '#/scene/Merged.tsx'
@@ -77,6 +78,13 @@ if (mobile) {
 const frame = params.get('frame')
 if (frame) config.frame_rooms = frame.split(',')
 if (params.get('first') === 'device') config.first_click = 'device'
+if (params.has('single')) {
+  const kept = new Set(config.rooms?.filter(room => room.floor_id !== 'first').map(room => room.id))
+  config.rooms = config.rooms?.filter(room => kept.has(room.id)).map(({ floor_id: _floor, ...room }) => room)
+  config.decorations = config.decorations?.filter(item => kept.has(item.room))
+  config.devices = config.devices?.filter(device => kept.has(device.room))
+  delete config.floors
+}
 
 type CardElement = HTMLElement & { setConfig: (c: CardConfig) => void; hass: HomeAssistant }
 const element = document.createElement(params.has('editor') ? 'diorama-card-editor' : 'diorama-card') as CardElement

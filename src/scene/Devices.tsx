@@ -42,6 +42,10 @@ type Props = {
   // In the card, a click that is for a room and nothing else, with the
   // rooms on either side of the wall the piece it landed on stands in.
   onRoom?: (room: string, through: string[]) => void
+  // The flights of stairs that lead to another floor, and what a click on
+  // one does in the card: it goes there.
+  stairs?: ReadonlySet<string>
+  onStairs?: (id: string) => void
 }
 
 // The last color each light was seen with. Home Assistant drops rgb_color
@@ -206,7 +210,17 @@ export function deviceTry(
   return { on: state.on, levels: { ...start.levels, ...state.levels }, tint }
 }
 
-export default function Devices({ hass, config, onPick, tries, onTry, roomFirst, onRoom }: Props) {
+export default function Devices({
+  hass,
+  config,
+  onPick: pick,
+  tries,
+  onTry,
+  roomFirst,
+  onRoom,
+  stairs,
+  onStairs,
+}: Props) {
   const devices = config.devices ?? []
   const decorations = config.decorations ?? []
   const rooms = config.rooms ?? []
@@ -308,7 +322,7 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
   // A cover Home Assistant can send to any position, fed by that position,
   // can be dragged there. Not in the editor, which leaves the real one be.
   const draggable = (device: DeviceConfig | undefined) => {
-    if (!hass || !device || onTry || onPick || !device.entity_id.startsWith('cover.')) return false
+    if (!hass || !device || onTry || pick || !device.entity_id.startsWith('cover.')) return false
     const entity = hass.states[device.entity_id]
     if (!entity || entity.state === 'unavailable') return false
     const features = Number(entity.attributes.supported_features ?? 0)
@@ -356,6 +370,9 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
     <>
       {decorations.map(item => {
         const { device, tried, state, flip } = states.get(item.id) ?? stateOf(item)
+        // A flight seen from the floor it climbs up to is on the floor below,
+        // so the editor does not pick it from here.
+        const onPick = item.below ? undefined : pick
         // A piece in a wall between two rooms sends its first click to the
         // room it is looked at from, the one the camera looks out of.
         const between = betweenOf(item, rooms)
@@ -386,27 +403,29 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
           return cover && boundTo.get(cover.id)
         }
         const onClick: PressAction | undefined =
-          device || onPick || tried
-            ? () => {
-                onPick?.(item.id)
-                // The editor only tries a device, and leaves the real one be.
-                if (onTry) {
-                  if (tried && !(device && roomFirst?.(roomOf()))) onTry(item.id)
-                } else if (device && !roomFirst?.(roomOf())) {
-                  // A piece set to only show its device opens its dialog
-                  // instead of switching it.
-                  if (item.show_only) openMoreInfo(device.entity_id)
-                  else act(device.entity_id)
+          !device && !onPick && onStairs && stairs?.has(item.id)
+            ? () => onStairs(item.id)
+            : device || onPick || tried
+              ? () => {
+                  onPick?.(item.id)
+                  // The editor only tries a device, and leaves the real one be.
+                  if (onTry) {
+                    if (tried && !(device && roomFirst?.(roomOf()))) onTry(item.id)
+                  } else if (device && !roomFirst?.(roomOf())) {
+                    // A piece set to only show its device opens its dialog
+                    // instead of switching it.
+                    if (item.show_only) openMoreInfo(device.entity_id)
+                    else act(device.entity_id)
+                  }
                 }
-              }
-            : covers.length > 0 && !leads
-              ? at => {
-                  const over = covering(at)
-                  if (over && !roomFirst?.(roomOf())) act(over.entity_id)
-                }
-              : between && onRoom
-                ? () => onRoom(roomOf() === between.front ? between.back : between.front, between.rooms)
-                : undefined
+              : covers.length > 0 && !leads
+                ? at => {
+                    const over = covering(at)
+                    if (over && !roomFirst?.(roomOf())) act(over.entity_id)
+                  }
+                : between && onRoom
+                  ? () => onRoom(roomOf() === between.front ? between.back : between.front, between.rooms)
+                  : undefined
         // Home Assistant's dialog would let the editor change the real
         // device, so the editor has none.
         const onOpen: PressAction | undefined = onTry
@@ -457,7 +476,7 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
             all={decorations}
             room={roomById.get(item.room)}
             between={between}
-            floor={floorUnder(item.room, between)}
+            floor={floorUnder(item.room, between) - (item.below ?? 0)}
             state={state}
             raise={raise(item)}
             onClick={onClick && h.click}

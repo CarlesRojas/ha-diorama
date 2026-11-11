@@ -6,6 +6,8 @@ import Overlay from '#/editor/Overlay.tsx'
 import RoomInfo from '#/editor/RoomInfo.tsx'
 import { plainButton } from '#/editor/look.ts'
 import Toolbar from '#/editor/Toolbar.tsx'
+import FloorPicker from '#/editor/FloorPicker.tsx'
+import { floorOf, floorsOf, floorView, levelName, stairLinks, pieceOutline, startFloor } from '#/lib/floors.ts'
 import { traceFrom, useTrace } from '#/editor/trace.ts'
 import type { Selection, Tool } from '#/editor/types.ts'
 import { fitView, roomCenter, round, type View } from '#/editor/view.ts'
@@ -90,59 +92,30 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
   // even after the original is gone.
   const [clipboard, setClipboard] = useState<DecorationConfig | null>(null)
   const [tool, setTool] = useState<Tool>('select')
-  const [floors, setFloors] = useState<FloorConfig[]>(
-    config.floors && config.floors.length > 0
-      ? config.floors
-      : [{ id: 'floor-0', name: 'Planta Baja', elevation: 0 }]
-  )
-  const [activeFloorId, setActiveFloorId] = useState<string>(floors[0]?.id ?? 'floor-0')
-
-  const addFloor = () => {
-    const nextNum = floors.length
-    const id = 'floor-' + nextNum
-    const newElevation = (floors[floors.length - 1]?.elevation ?? 0) + 3.0
-    const newFloor: FloorConfig = {
-      id,
-      name: 'Planta ' + nextNum,
-      elevation: Math.round(newElevation * 100) / 100,
-    }
-    const nextFloors = [...floors, newFloor]
-    setFloors(nextFloors)
-    setActiveFloorId(id)
-    setFloors(nextFloors)
-    commit(rooms, devices, decorations, config.models, nextFloors)
+  // The floors of the home. With fewer than two every room is on the same
+  // one, as in a card from before floors, and none are written.
+  const [floors, setFloors] = useState<FloorConfig[]>(config.floors ?? [])
+  const levels = floorsOf({ floors })
+  const multi = levels.length > 1
+  // The floor being edited. Drawing, dragging, overlaps and placing pieces
+  // all work on its rooms alone, and the others show faintly under it.
+  const [floorAsked, setFloorAsked] = useState<string | null>(null)
+  const activeFloor = multi ? (levels.find(f => f.id === floorAsked)?.id ?? startFloor(levels)?.id ?? null) : null
+  const onActive = (room: RoomConfig) => !multi || floorOf(room, levels) === activeFloor
+  const floorRooms = rooms.filter(onActive)
+  const floorRoomIds = new Set(floorRooms.map(r => r.id))
+  const floorDecorations = decorations.filter(d => floorRoomIds.has(d.room))
+  // The plan hands back the rooms and pieces of the floor it was given. Put
+  // back among the rest, each keeps its place in the list, which is the
+  // order the side panel shows rooms in, and what is new goes at the end.
+  const merged = <T extends { id: string }>(all: T[], mine: (item: T) => boolean, next: T[]) => {
+    const byId = new Map(next.map(item => [item.id, item]))
+    const kept = all.flatMap(item => (mine(item) ? (byId.has(item.id) ? [byId.get(item.id)!] : []) : [item]))
+    return [...kept, ...next.filter(item => !all.some(other => other.id === item.id))]
   }
-
-  const reorderFloors = (nextFloors: FloorConfig[]) => {
-    // Collect the sorted elevations from lowest to highest
-    const sortedElevations = [...floors].map(f => f.elevation).sort((a, b) => a - b)
-    // Assign sorted elevations according to the new visual order (left-to-right = bottom-to-top)
-    const withUpdatedElevations = nextFloors.map((floor, index) => ({
-      ...floor,
-      elevation: sortedElevations[index] ?? floor.elevation,
-    }))
-    setFloors(withUpdatedElevations)
-    setFloors(withUpdatedElevations)
-    commit(rooms, devices, decorations, config.models, withUpdatedElevations)
-  }
-
-  const updateFloor = (floorId: string, patch: Partial<FloorConfig>) => {
-    const nextFloors = floors.map(f => (f.id === floorId ? { ...f, ...patch } : f))
-    setFloors(nextFloors)
-    setFloors(nextFloors)
-    commit(rooms, devices, decorations, config.models, nextFloors)
-  }
-
-  const deleteFloor = (floorId: string) => {
-    if (floors.length <= 1) return
-    const nextFloors = floors.filter(f => f.id !== floorId)
-    setFloors(nextFloors)
-    if (activeFloorId === floorId) {
-      setActiveFloorId(nextFloors[0]?.id ?? 'floor-0')
-    }
-    setFloors(nextFloors)
-    commit(rooms, devices, decorations, config.models, nextFloors)
-  }
+  const mergeRooms = (next: RoomConfig[]) =>
+    merged(rooms, onActive, next).map(r => (multi && !r.floor_id && activeFloor ? { ...r, floor_id: activeFloor } : r))
+  const mergeDecorations = (next: DecorationConfig[]) => merged(decorations, d => floorRoomIds.has(d.room), next)
   const [selection, setSelection] = useState<Selection>({ roomId: null, vertex: null })
   const [draft, setDraft] = useState<Point[]>([])
   const [view, setView] = useState<View | null>(null)
@@ -156,10 +129,12 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
   // The picture the rooms are traced over. It is selected like anything
   // else on the plan, which is when it can be moved and sized, and it opens
   // selected when it is first chosen.
-  const [trace, setTrace] = useTrace(activeFloorId)
+  // Each floor has a picture of its own to trace, the first floor the one
+  // the home had before it had floors.
+  const [trace, setTrace] = useTrace(activeFloor && activeFloor !== startFloor(levels)?.id ? activeFloor : null)
   const [traceSelected, setTraceSelected] = useState(false)
   const pickTrace = async (file: File) => {
-    setTrace(await traceFrom(file, rooms))
+    setTrace(await traceFrom(file, floorRooms.length > 0 ? floorRooms : rooms))
     setSelection({ roomId: null, vertex: null })
     setSelectedDecoration(null)
     setTraceSelected(true)
@@ -243,6 +218,10 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       setSelection({ roomId: null, vertex: null })
       const item = decorations.find(d => d.id === id)
       if (item) setAddRoom(item.room)
+      // A piece on another floor, like another one a device drives, takes
+      // the plan to that floor.
+      const room = item && rooms.find(r => r.id === item.room)
+      if (multi && room && !onActive(room)) setFloorAsked(floorOf(room, levels) ?? null)
     }
     setSelectedDecoration(id)
   }
@@ -323,13 +302,19 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
 
   // Pick up edits made outside, for example in the YAML editor.
   useEffect(() => {
-    const incoming = serialize(config.rooms ?? [], config.devices ?? [], config.decorations ?? [], config.models, config.floors)
+    const incoming = serialize(
+      config.rooms ?? [],
+      config.devices ?? [],
+      config.decorations ?? [],
+      config.models,
+      config.floors,
+    )
     if (incoming === lastEmitted.current) return
     lastEmitted.current = incoming
     setRooms(config.rooms ?? [])
     setDevices(config.devices ?? [])
     setDecorations(config.decorations ?? [])
-    if (config.floors) setFloors(config.floors)
+    setFloors(config.floors ?? [])
   }, [config])
 
   // A device is only ever a binding: one with nothing standing in for it is
@@ -354,6 +339,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     nextFloors: FloorConfig[] = floors,
   ) => {
     const nextDevices = settle(devicesIn, nextDecorations)
+    setFloors(nextFloors)
     setRooms(nextRooms)
     setDevices(nextDevices)
     setDecorations(nextDecorations)
@@ -367,7 +353,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     else delete next.decorations
     if (nextModels && Object.keys(nextModels).length > 0) next.models = nextModels
     else delete next.models
-    if (nextFloors && nextFloors.length > 0) next.floors = nextFloors
+    if (nextFloors.length > 0) next.floors = nextFloors
     else delete next.floors
     onChange(next)
   }
@@ -604,7 +590,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
   const pasteDecoration = () => {
     const item = clipboard
     if (!item) return
-    const room = selectedRoom ?? rooms.find(r => r.id === item.room) ?? targetRoom()
+    const room = selectedRoom ?? floorRooms.find(r => r.id === item.room) ?? targetRoom()
     if (!room) return
     const copy = offsetCopy(item, room)
     copy.id = nextDecorationId(item.kind)
@@ -621,7 +607,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     if (!room) return
     const placed = freePlacement(
       room.points,
-      rooms.map(r => r.points),
+      rooms.filter(r => floorOf(r, levels) === floorOf(room, levels)).map(r => r.points),
     )
     if (!placed) return
     const n = nextRoomId(rooms)
@@ -656,7 +642,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     }
     const room = selectedRoom
     if (!room) return
-    const others = rooms.filter(r => r.id !== room.id).map(r => r.points)
+    const others = floorRooms.filter(r => r.id !== room.id).map(r => r.points)
     const points =
       selection.vertex === null
         ? room.points.map(move)
@@ -754,18 +740,19 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       }),
     )
 
-  const selectedRoom = rooms.find(r => r.id === selection.roomId) ?? null
+  const selectedRoom = floorRooms.find(r => r.id === selection.roomId) ?? null
 
   // Where a new piece lands: the selected room, the room the selected piece
-  // stands in, the last room either of them was in, or any room at all.
+  // stands in, the last room either of them was in, or any room at all, all
+  // on the floor being edited.
   const targetRoom = () => {
     if (selectedRoom) return selectedRoom
     const item = decorations.find(d => d.id === selectedDecoration)
-    const its = item ? rooms.find(r => r.id === item.room) : undefined
+    const its = item ? floorRooms.find(r => r.id === item.room) : undefined
     if (its) return its
-    const last = rooms.find(r => r.id === addRoom)
+    const last = floorRooms.find(r => r.id === addRoom)
     if (last) return last
-    return rooms.length > 0 ? rooms[Math.floor(Math.random() * rooms.length)] : null
+    return floorRooms.length > 0 ? floorRooms[Math.floor(Math.random() * floorRooms.length)] : null
   }
 
   // Which of a device's percentages drives which movement of the item.
@@ -820,6 +807,131 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     )
     if (selection.roomId === id) setSelection({ roomId: null, vertex: null })
   }
+
+  // Floors
+
+  // Another floor to edit lets go of whatever was picked on this one.
+  const goToFloor = (id: string) => {
+    setFloorAsked(id)
+    setSelection({ roomId: null, vertex: null })
+    setSelectedDecoration(null)
+    setTraceSelected(false)
+    setDraft([])
+    setAddRoom(null)
+  }
+
+  const newFloorId = (list: { id: string }[]) => {
+    let n = 1
+    while (list.some(f => f.id === `floor-${n}`)) n++
+    return `floor-${n}`
+  }
+
+  // A floor over the highest, or under the lowest. The first one added to
+  // a home with none makes the floor every room is on its ground floor, and
+  // writes it on each room, so moving the floors round later moves no room.
+  const addFloor = (below: boolean) => {
+    let list: FloorConfig[] = multi ? levels.map(({ id, name, level }) => ({ id, name, level })) : []
+    let nextRooms = rooms
+    if (list.length === 0) {
+      const ground = levels[0] ?? { id: newFloorId([]), name: levelName(0), level: 0 }
+      list = [{ id: ground.id, name: ground.name, level: ground.level }]
+      nextRooms = rooms.map(r => ({ ...r, floor_id: ground.id }))
+    }
+    const level = below ? (list[0].level ?? 0) - 1 : (list[list.length - 1].level ?? 0) + 1
+    const floor: FloorConfig = { id: newFloorId(list), name: levelName(level), level }
+    commit(nextRooms, devices, decorations, config.models, below ? [floor, ...list] : [...list, floor])
+    goToFloor(floor.id)
+  }
+
+  // The floors in a new order, from the lowest up. They keep the levels
+  // there were, handed out again in the new order, and a floor still called
+  // what its old level is called takes the name of its new one.
+  const orderFloors = (ids: string[]) => {
+    const steps = levels.map(f => f.level)
+    const next = ids.flatMap((id, i) => {
+      const floor = levels.find(f => f.id === id)
+      if (!floor) return []
+      const level = steps[i]
+      return [{ id, name: floor.name === levelName(floor.level) ? levelName(level) : floor.name, level }]
+    })
+    commit(rooms, devices, decorations, config.models, next)
+  }
+
+  const renameFloor = (id: string, name: string) => {
+    const next = levels.map(f => ({
+      id: f.id,
+      name: f.id === id ? name.trim() || levelName(f.level) : f.name,
+      level: f.level,
+    }))
+    commit(rooms, devices, decorations, config.models, next)
+  }
+
+  // Only a floor with no rooms goes. With one floor left the home has none
+  // again, and its rooms say no floor, as in a card from before floors.
+  const deleteFloor = (id: string) => {
+    if (rooms.some(r => floorOf(r, levels) === id)) return
+    const left = levels.filter(f => f.id !== id).map(({ id, name, level }) => ({ id, name, level }))
+    if (left.length > 1) commit(rooms, devices, decorations, config.models, left)
+    else
+      commit(
+        rooms.map(({ floor_id: _dropped, ...rest }) => rest),
+        devices,
+        decorations,
+        config.models,
+        [],
+      )
+    if (activeFloor === id) goToFloor(left[0]?.id ?? '')
+  }
+
+  // A room taken to another floor takes everything in it along. Where it
+  // would overlap a room already there it moves to the nearest free spot,
+  // and the plan goes to that floor with the room still picked.
+  const moveToFloor = (roomId: string, floorId: string) => {
+    const room = rooms.find(r => r.id === roomId)
+    if (!room || floorOf(room, levels) === floorId) return
+    const there = rooms.filter(r => r.id !== roomId && floorOf(r, levels) === floorId).map(r => r.points)
+    const points = isValidRoom(room.points, there) ? room.points : freePlacement(room.points, there)
+    if (!points) return
+    const dx = points[0][0] - room.points[0][0]
+    const dy = points[0][1] - room.points[0][1]
+    const shift = ([x, y]: Point): Point => [round(x + dx), round(y + dy)]
+    commit(
+      rooms.map(r =>
+        r.id === roomId
+          ? { ...r, floor_id: floorId, points: points.map(([x, y]) => [round(x), round(y)] as Point) }
+          : r,
+      ),
+      devices,
+      dx === 0 && dy === 0
+        ? decorations
+        : decorations.map(d => (d.room === roomId ? { ...d, position: shift(d.position) } : d)),
+    )
+    setFloorAsked(floorId)
+    setSelection({ roomId, vertex: null })
+  }
+
+  // How many rooms each floor has, and the flights that come up to the one
+  // being edited from below, drawn on its plan.
+  const roomCounts: Record<string, number> = {}
+  for (const r of rooms) {
+    const on = floorOf(r, levels)
+    if (on) roomCounts[on] = (roomCounts[on] ?? 0) + 1
+  }
+  const linkConfig = { ...config, rooms, decorations, floors }
+  const arriving = multi
+    ? stairLinks(linkConfig)
+        .filter(link => link.upper.floor === activeFloor)
+        .flatMap(link => {
+          const item = decorations.find(d => d.id === link.id)
+          return item ? [pieceOutline(item)] : []
+        })
+    : []
+
+  // The pieces of the floor right below the one being edited, faint under
+  // its plan with that floor's rooms, to build this one over them.
+  const below = multi ? levels[levels.findIndex(f => f.id === activeFloor) - 1] : undefined
+  const belowRooms = new Set(rooms.filter(r => below && floorOf(r, levels) === below.id).map(r => r.id))
+  const ghostPieces = decorations.filter(d => belowRooms.has(d.room)).map(pieceOutline)
 
   const togglePreview = () => setShowPreview(!showPreview)
 
@@ -884,8 +996,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     setSelection({ roomId: null, vertex: null })
     setSelectedDecoration(null)
     registerModels(opened.models)
-    if (opened.floors) setFloors(opened.floors)
-    commit(opened.rooms, opened.devices, opened.decorations, opened.models, opened.floors ?? floors)
+    commit(opened.rooms, opened.devices, opened.decorations, opened.models, opened.floors ?? [])
     setConfirmDiscard(false)
     setFullscreen(false)
   }
@@ -906,12 +1017,11 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
   useBackButton(fullscreen, close)
 
   const closeDraft = () => {
-    const activeRooms = rooms.filter(r => (r.floor_id ?? 'floor-0') === activeFloorId)
     if (
       draft.length < 3 ||
       !isValidRoom(
         draft,
-        activeRooms.map(r => r.points),
+        floorRooms.map(r => r.points),
       )
     )
       return
@@ -919,7 +1029,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     const room: RoomConfig = {
       id: `room-${n}`,
       name: `Room ${n}`,
-      floor_id: activeFloorId,
+      ...(multi && activeFloor && { floor_id: activeFloor }),
       points: draft.map(([x, y]) => [round(x), round(y)]),
       floor: { material: DEFAULT_FLOOR_MATERIAL },
     }
@@ -1042,13 +1152,17 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
 
   const canvas = (
     <Canvas
-      activeFloorId={activeFloorId}
-      rooms={rooms}
+      rooms={floorRooms}
+      ghosts={rooms.filter(r => !onActive(r))}
+      arriving={arriving}
+      ghostPieces={ghostPieces}
       devices={devices}
-      decorations={decorations}
+      decorations={floorDecorations}
       selectedDecoration={selectedDecoration}
       pointedTop={selectedDecoration ? pointedTop : null}
-      onDecorations={(next, done) => (done ? commit(rooms, devices, next) : setDecorations(next))}
+      onDecorations={(next, done) =>
+        done ? commit(rooms, devices, mergeDecorations(next)) : setDecorations(mergeDecorations(next))
+      }
       onSelectDecoration={pickDecoration}
       onRemoveDecoration={removeDecoration}
       onRotateDecoration={rotateDecoration}
@@ -1070,7 +1184,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       onView={setView}
       fit={fit}
       onSelect={pickRoom}
-      onRooms={(next, done) => (done ? commit(next) : setRooms(next))}
+      onRooms={(next, done) => (done ? commit(mergeRooms(next)) : setRooms(mergeRooms(next)))}
       onDraftPoint={p => setDraft([...draft, p])}
       onCloseDraft={closeDraft}
       onDeleteRoom={deleteRoom}
@@ -1088,13 +1202,18 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       <Toolbar
         tool={tool}
         onTool={setTool}
-        floors={floors}
-        activeFloorId={activeFloorId}
-        onSelectFloor={setActiveFloorId}
-        onAddFloor={addFloor}
-        onReorderFloors={reorderFloors}
-        onUpdateFloor={updateFloor}
-        onDeleteFloor={deleteFloor}
+        floors={
+          <FloorPicker
+            floors={multi ? levels : [{ id: '', name: levels[0]?.name ?? levelName(0), level: 0 }]}
+            active={activeFloor}
+            rooms={roomCounts}
+            onPick={id => multi && goToFloor(id)}
+            onAdd={addFloor}
+            onOrder={orderFloors}
+            onRename={renameFloor}
+            onDelete={deleteFloor}
+          />
+        }
         onFit={() => setView(null)}
         showLengths={showLengths}
         onShowLengths={setShowLengths}
@@ -1121,18 +1240,20 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     selectedRoom && showRoom ? (
       <RoomInfo
         room={selectedRoom}
-        rooms={rooms}
+        rooms={floorRooms}
+        everyRoom={rooms}
+        floorId={activeFloor}
         areas={Object.values(hass?.areas ?? {})}
         onRename={renameRoom}
         onRenameDone={flushRename}
         onAssignArea={assignArea}
         onFloor={setFloor}
         onElevation={setElevation}
-        floors={floors}
-        onAssignFloor={(roomId, floorId) => updateRoom(roomId, { floor_id: floorId })}
+        floors={multi ? levels : undefined}
+        onAssignFloor={moveToFloor}
         hass={hass}
         onPresence={setPresence}
-        decorations={decorations}
+        decorations={floorDecorations}
         onArrow={setArrow}
         onSaveCamera={saveRoomCamera}
         onShowCamera={showRoomCamera}
@@ -1156,7 +1277,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
   const panels = (
     <DecorationPanel
       hass={hass}
-      rooms={rooms}
+      rooms={floorRooms}
       devices={devices}
       decorations={decorations}
       models={config.models}
@@ -1278,7 +1399,8 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
                     </div>
                     <Scene
                       hass={home ?? hass}
-                      config={{ ...config, rooms, devices, decorations, floors }}
+                      config={floorView({ ...config, rooms, devices, decorations, floors }, activeFloor)}
+                      floor={activeFloor}
                       sky={hour}
                       wheelZoom
                       onPickDecoration={pickDecoration}
