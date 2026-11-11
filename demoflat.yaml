@@ -10,8 +10,16 @@ home:
     - switch.all_lights
     - switch.cleaning
     - weather.home
+floors:
+  - id: ground
+    name: Ground floor
+    level: 0
+  - id: first
+    name: First floor
+    level: 1
 rooms:
   - id: living
+    floor_id: ground
     name: Living room
     area_id: living_room
     points:
@@ -32,6 +40,7 @@ rooms:
       - alarm_control_panel.home
       - camera.backyard
   - id: kitchen
+    floor_id: ground
     name: Kitchen
     area_id: kitchen
     points:
@@ -53,6 +62,7 @@ rooms:
       - weather.home
       - climate.thermostat
   - id: bedroom
+    floor_id: ground
     name: Bedroom
     area_id: bedroom
     points:
@@ -75,6 +85,7 @@ rooms:
       - media_player.bedroom_projector
       - cover.projector_screen
   - id: bathroom
+    floor_id: ground
     name: Bathroom
     area_id: bathroom
     points:
@@ -95,6 +106,81 @@ rooms:
       - water_heater.boiler
       - binary_sensor.bathroom_moisture
       - button.litter_box_scoop
+    hide_arrows:
+      - hall
+  - id: hall
+    floor_id: ground
+    name: Hall
+    area_id: hall
+    points:
+      - [7.8, 0]
+      - [9.4, 0]
+      - [9.4, 5.6]
+      - [7.8, 5.6]
+    floor:
+      material: wood
+    hide_arrows:
+      - bathroom
+  - id: landing
+    floor_id: first
+    name: Landing
+    area_id: landing
+    points:
+      - [7.8, 3.65]
+      - [9.4, 3.65]
+      - [9.4, 5.6]
+      - [7.8, 5.6]
+    floor:
+      material: wood
+  - id: study
+    floor_id: first
+    name: Study
+    area_id: study
+    points:
+      - [4.2, 2.2]
+      - [7.8, 2.2]
+      - [7.8, 5.6]
+      - [4.2, 5.6]
+    floor:
+      material: wood
+    order:
+      - switch.desk_lamp
+      - media_player.study_speaker
+  - id: kids
+    floor_id: first
+    name: "Children's room"
+    area_id: kids_room
+    points:
+      - [0, 3.05]
+      - [4.2, 3.05]
+      - [4.2, 5.6]
+      - [0, 5.6]
+    floor:
+      material: carpet
+      color: "#b9b2a6"
+  - id: laundry
+    floor_id: first
+    name: Laundry
+    area_id: laundry
+    points:
+      - [4.2, 0]
+      - [7.8, 0]
+      - [7.8, 2.2]
+      - [4.2, 2.2]
+    floor:
+      material: tiles
+      color: "#8a8a8a"
+  - id: terrace
+    floor_id: first
+    name: Terrace
+    area_id: terrace
+    points:
+      - [0, 0]
+      - [4.2, 0]
+      - [4.2, 3.05]
+      - [0, 3.05]
+    floor:
+      material: terracotta
 devices:
   - entity_id: light.floor_lamp
     room: living
@@ -187,7 +273,7 @@ devices:
       - bedroom_speaker
   - entity_id: humidifier.bedroom
     room: bedroom
-    position: [7.55, 5.15]
+    position: [4.55, 2.6]
     decorations:
       - humidifier
   - entity_id: cover.projector_screen
@@ -215,6 +301,27 @@ devices:
     position: [4.56, 0.32]
     decorations:
       - litter_box
+  - entity_id: light.hall
+    room: hall
+    position: [8.6, 4.6]
+    decorations:
+      - hall_light
+      - landing_light
+  - entity_id: switch.desk_lamp
+    room: study
+    position: [6.6, 5.35]
+    decorations:
+      - desk_lamp
+  - entity_id: media_player.study_speaker
+    room: study
+    position: [4.4, 3.4]
+    decorations:
+      - study_speaker
+  - entity_id: fan.kids_fan
+    room: kids
+    position: [3.85, 3.4]
+    decorations:
+      - kids_fan
 decorations:
   - id: sofa
     kind: sofa
@@ -452,16 +559,12 @@ decorations:
     kind: light_ceiling
     room: bedroom
     position: [6, 3.4]
-  - id: bedroom_window
-    kind: window
+  - id: hall_door
+    kind: door
     room: bedroom
-    position: [7.8, 4.45]
+    position: [7.8, 4.6]
     rotation: 270
-    variant: casement
-    params:
-      height: 1.4
-      sill: 0.7
-      width: 0.75
+    variant: flush
   - id: dresser
     kind: dresser
     room: bedroom
@@ -606,7 +709,7 @@ decorations:
   - id: humidifier
     kind: humidifier
     room: bedroom
-    position: [7.55, 5.15]
+    position: [4.55, 2.6]
   - id: water_heater
     kind: water_heater
     room: bathroom
@@ -627,6 +730,170 @@ decorations:
     room: bathroom
     position: [4.56, 0.32]
     rotation: 90
+  - id: stairs
+    kind: stairs
+    room: hall
+    position: [8.93, 1.95]
+    params:
+      rail: 1
+  - id: hall_light
+    kind: light_ceiling
+    room: hall
+    position: [8.6, 4.6]
+    variant: dome
+  - id: hall_window
+    kind: window
+    room: hall
+    position: [9.4, 4.6]
+    rotation: 270
+    variant: casement
+    params:
+      height: 1.4
+      sill: 0.7
+      width: 0.75
+  - id: shoe_rack
+    kind: shoe_rack
+    room: hall
+    position: [8, 1]
+    rotation: 90
+  - id: hall_plant
+    kind: plant_large
+    room: hall
+    position: [8.15, 5.2]
+    variant: fiddle
+  - id: landing_rail
+    kind: railing
+    room: landing
+    position: [8.11, 3.7]
+    params:
+      width: 0.6
+  - id: landing_light
+    kind: light_ceiling
+    room: landing
+    position: [8.6, 4.6]
+    variant: dome
+  - id: study_door
+    kind: door
+    room: study
+    position: [7.8, 4.6]
+    rotation: 270
+    variant: flush
+  - id: desk
+    kind: desk
+    room: study
+    position: [6, 5.25]
+  - id: monitor
+    kind: monitor
+    room: study
+    position: [6, 5.35]
+    "on": desk
+  - id: desk_lamp
+    kind: light_desk
+    room: study
+    position: [6.6, 5.35]
+    "on": desk
+  - id: office_chair
+    kind: office_chair
+    room: study
+    position: [6, 4.65]
+    rotation: 180
+  - id: study_shelf
+    kind: bookshelf
+    room: study
+    position: [4.4, 3.4]
+    rotation: 90
+  - id: study_speaker
+    kind: speaker
+    room: study
+    position: [4.4, 3.4]
+    rotation: 90
+    variant: pod
+    "on": study_shelf
+  - id: study_plant
+    kind: plant_large
+    room: study
+    position: [7.4, 2.6]
+    variant: fiddle
+  - id: study_rug
+    kind: rug
+    room: study
+    position: [6, 4.1]
+  - id: kids_door
+    kind: door
+    room: study
+    position: [4.2, 4.6]
+    rotation: 90
+    variant: flush
+  - id: laundry_door
+    kind: door
+    room: laundry
+    position: [6.6, 2.2]
+    rotation: 0
+    variant: flush
+  - id: loft_bed
+    kind: loft_bed
+    room: kids
+    position: [1.1, 5]
+  - id: kids_sofa
+    kind: kids_sofa
+    room: kids
+    position: [3.3, 5.2]
+  - id: kids_rug
+    kind: rug
+    room: kids
+    position: [2.4, 4.2]
+    variant: kilim
+  - id: kids_fan
+    kind: fan_floor
+    room: kids
+    position: [3.85, 3.4]
+  - id: kids_window
+    kind: window
+    room: kids
+    position: [0, 4.3]
+    rotation: 90
+    variant: casement
+    params:
+      height: 1.45
+      sill: 0.65
+  - id: terrace_door
+    kind: door
+    room: kids
+    position: [2.6, 3.05]
+    rotation: 180
+    variant: glazed
+  - id: washer
+    kind: washing_machine
+    room: laundry
+    position: [5, 0.35]
+    rotation: 180
+  - id: dryer
+    kind: dryer
+    room: laundry
+    position: [5.7, 0.35]
+    rotation: 180
+  - id: laundry_light
+    kind: light_ceiling
+    room: laundry
+    position: [6, 1.1]
+  - id: terrace_bench
+    kind: bench
+    room: terrace
+    position: [2.1, 0.35]
+    rotation: 180
+  - id: terrace_plant_a
+    kind: plant_large
+    room: terrace
+    position: [0.45, 0.45]
+    variant: fiddle
+  - id: terrace_plant_b
+    kind: plant_large
+    room: terrace
+    position: [3.75, 0.45]
+  - id: terrace_lights
+    kind: light_string
+    room: terrace
+    position: [2.1, 1.6]
 camera:
   position: [3.97, 8.58, 3.33]
   target: [3.97, 0.3, -3.08]

@@ -1,7 +1,9 @@
 // The demo flat: a small, fully furnished home with a living room, a
-// kitchen open to it, a bedroom and a bathroom. scripts/demoflat.ts writes
-// it to demoflat.yaml and the dev page at src/dev/demoflat.html draws it
-// with made up devices, for the screenshots in the README.
+// kitchen open to it, a bedroom, a bathroom and a hall whose stairs climb
+// to a first floor with a study, a children's room, a laundry and a roof
+// terrace. scripts/demoflat.ts writes it to demoflat.yaml and the dev page
+// at src/dev/demoflat.html draws it with made up devices, for the
+// screenshots in the README.
 import type {
   Area,
   CardConfig,
@@ -38,6 +40,29 @@ const BATHROOM: Point[] = [
   [7.8, 0],
   [7.8, 2.2],
   [4.2, 2.2],
+]
+// The hall along the right, with the stairs up its outside wall.
+const HALL: Point[] = [
+  [7.8, 0],
+  [9.4, 0],
+  [9.4, 5.6],
+  [7.8, 5.6],
+]
+
+// The first floor stands over the ground floor's rooms: the terrace over
+// the living room, the children's room over the kitchen, the study over the
+// bedroom and the laundry over the bathroom. Over the hall only its far end
+// is floored, as the landing the stairs arrive on, and the rest is left open
+// for the stairwell.
+const TERRACE: Point[] = LIVING
+const KIDS: Point[] = KITCHEN
+const STUDY: Point[] = BEDROOM
+const LAUNDRY: Point[] = BATHROOM
+const LANDING: Point[] = [
+  [7.8, 3.65],
+  [9.4, 3.65],
+  [9.4, 5.6],
+  [7.8, 5.6],
 ]
 
 // Every piece in the flat, placed and colored in the editor.
@@ -165,15 +190,7 @@ const decorations: DecorationConfig[] = [
     on: 'nightstand_b',
   },
   { id: 'bedroom_light', kind: 'light_ceiling', room: 'bedroom', position: [6, 3.4] },
-  {
-    id: 'bedroom_window',
-    kind: 'window',
-    room: 'bedroom',
-    position: [7.8, 4.45],
-    rotation: 270,
-    variant: 'casement',
-    params: { height: 1.4, sill: 0.7, width: 0.75 },
-  },
+  { id: 'hall_door', kind: 'door', room: 'bedroom', position: [7.8, 4.6], rotation: 270, variant: 'flush' },
   {
     id: 'dresser',
     kind: 'dresser',
@@ -284,7 +301,7 @@ const decorations: DecorationConfig[] = [
     params: { length: 3, height: 1.45 },
   },
   { id: 'bedroom_speaker', kind: 'speaker', room: 'bedroom', position: [7.55, 2.65], on: 'dresser', variant: 'pod' },
-  { id: 'humidifier', kind: 'humidifier', room: 'bedroom', position: [7.55, 5.15] },
+  { id: 'humidifier', kind: 'humidifier', room: 'bedroom', position: [4.55, 2.6] },
   {
     id: 'water_heater',
     kind: 'water_heater',
@@ -296,6 +313,79 @@ const decorations: DecorationConfig[] = [
   { id: 'bathroom_leak', kind: 'leak_sensor', room: 'bathroom', position: [6.2, 1.95] },
   { id: 'bathroom_motion', kind: 'motion_sensor', room: 'bathroom', position: [4.2, 1.8], rotation: 90 },
   { id: 'litter_box', kind: 'litter_box', room: 'bathroom', position: [4.56, 0.32], rotation: 90 },
+
+  // The hall, and the stairs that climb from it to the first floor.
+  {
+    id: 'stairs',
+    kind: 'stairs',
+    room: 'hall',
+    position: [8.93, 1.95],
+    params: { rail: 1 },
+  },
+  { id: 'hall_light', kind: 'light_ceiling', room: 'hall', position: [8.6, 4.6], variant: 'dome' },
+  {
+    id: 'hall_window',
+    kind: 'window',
+    room: 'hall',
+    position: [9.4, 4.6],
+    rotation: 270,
+    variant: 'casement',
+    params: { height: 1.4, sill: 0.7, width: 0.75 },
+  },
+  { id: 'shoe_rack', kind: 'shoe_rack', room: 'hall', position: [8.0, 1.0], rotation: 90 },
+  { id: 'hall_plant', kind: 'plant_large', room: 'hall', position: [8.15, 5.2], variant: 'fiddle' },
+
+  // The landing at the top of the stairs.
+  { id: 'landing_rail', kind: 'railing', room: 'landing', position: [8.11, 3.7], params: { width: 0.6 } },
+  { id: 'landing_light', kind: 'light_ceiling', room: 'landing', position: [8.6, 4.6], variant: 'dome' },
+  { id: 'study_door', kind: 'door', room: 'study', position: [7.8, 4.6], rotation: 270, variant: 'flush' },
+
+  // The study, over the bedroom.
+  { id: 'desk', kind: 'desk', room: 'study', position: [6, 5.25] },
+  { id: 'monitor', kind: 'monitor', room: 'study', position: [6, 5.35], on: 'desk' },
+  { id: 'desk_lamp', kind: 'light_desk', room: 'study', position: [6.6, 5.35], on: 'desk' },
+  { id: 'office_chair', kind: 'office_chair', room: 'study', position: [6, 4.65], rotation: 180 },
+  { id: 'study_shelf', kind: 'bookshelf', room: 'study', position: [4.4, 3.4], rotation: 90 },
+  {
+    id: 'study_speaker',
+    kind: 'speaker',
+    room: 'study',
+    position: [4.4, 3.4],
+    rotation: 90,
+    variant: 'pod',
+    on: 'study_shelf',
+  },
+  { id: 'study_plant', kind: 'plant_large', room: 'study', position: [7.4, 2.6], variant: 'fiddle' },
+  { id: 'study_rug', kind: 'rug', room: 'study', position: [6, 4.1] },
+  { id: 'kids_door', kind: 'door', room: 'study', position: [4.2, 4.6], rotation: 90, variant: 'flush' },
+  { id: 'laundry_door', kind: 'door', room: 'laundry', position: [6.6, 2.2], rotation: 0, variant: 'flush' },
+
+  // The children's room, over the kitchen.
+  { id: 'loft_bed', kind: 'loft_bed', room: 'kids', position: [1.1, 5.0] },
+  { id: 'kids_sofa', kind: 'kids_sofa', room: 'kids', position: [3.3, 5.2] },
+  { id: 'kids_rug', kind: 'rug', room: 'kids', position: [2.4, 4.2], variant: 'kilim' },
+  { id: 'kids_fan', kind: 'fan_floor', room: 'kids', position: [3.85, 3.4] },
+  {
+    id: 'kids_window',
+    kind: 'window',
+    room: 'kids',
+    position: [0, 4.3],
+    rotation: 90,
+    variant: 'casement',
+    params: { height: 1.45, sill: 0.65 },
+  },
+  { id: 'terrace_door', kind: 'door', room: 'kids', position: [2.6, 3.05], rotation: 180, variant: 'glazed' },
+
+  // The laundry, over the bathroom.
+  { id: 'washer', kind: 'washing_machine', room: 'laundry', position: [5.0, 0.35], rotation: 180 },
+  { id: 'dryer', kind: 'dryer', room: 'laundry', position: [5.7, 0.35], rotation: 180 },
+  { id: 'laundry_light', kind: 'light_ceiling', room: 'laundry', position: [6, 1.1] },
+
+  // The roof terrace, over the living room.
+  { id: 'terrace_bench', kind: 'bench', room: 'terrace', position: [2.1, 0.35], rotation: 180 },
+  { id: 'terrace_plant_a', kind: 'plant_large', room: 'terrace', position: [0.45, 0.45], variant: 'fiddle' },
+  { id: 'terrace_plant_b', kind: 'plant_large', room: 'terrace', position: [3.75, 0.45] },
+  { id: 'terrace_lights', kind: 'light_string', room: 'terrace', position: [2.1, 1.6] },
 ]
 
 const devices: DeviceConfig[] = []
@@ -331,6 +421,10 @@ device('media_player.bedroom_projector', 'projector')
 device('water_heater.boiler', 'water_heater')
 device('binary_sensor.bathroom_moisture', 'bathroom_leak')
 device('button.litter_box_scoop', 'litter_box')
+device('light.hall', 'hall_light', 'landing_light')
+device('switch.desk_lamp', 'desk_lamp')
+device('media_player.study_speaker', 'study_speaker')
+device('fan.kids_fan', 'kids_fan')
 
 export const DEMO_FLAT: CardConfig = {
   type: 'custom:diorama-card',
@@ -339,10 +433,17 @@ export const DEMO_FLAT: CardConfig = {
   first_click: 'room',
   // With the whole flat in view the panel shows only these, and each room's
   // tiles show once that room is.
-  home: { entities: ['switch.projector_scene', 'switch.tv_scene', 'switch.all_lights', 'switch.cleaning', 'weather.home'] },
+  home: {
+    entities: ['switch.projector_scene', 'switch.tv_scene', 'switch.all_lights', 'switch.cleaning', 'weather.home'],
+  },
+  floors: [
+    { id: 'ground', name: 'Ground floor', level: 0 },
+    { id: 'first', name: 'First floor', level: 1 },
+  ],
   rooms: [
     {
       id: 'living',
+      floor_id: 'ground',
       name: 'Living room',
       area_id: 'living_room',
       points: LIVING,
@@ -359,6 +460,7 @@ export const DEMO_FLAT: CardConfig = {
     },
     {
       id: 'kitchen',
+      floor_id: 'ground',
       name: 'Kitchen',
       area_id: 'kitchen',
       points: KITCHEN,
@@ -375,6 +477,7 @@ export const DEMO_FLAT: CardConfig = {
     },
     {
       id: 'bedroom',
+      floor_id: 'ground',
       name: 'Bedroom',
       area_id: 'bedroom',
       points: BEDROOM,
@@ -392,6 +495,7 @@ export const DEMO_FLAT: CardConfig = {
     },
     {
       id: 'bathroom',
+      floor_id: 'ground',
       name: 'Bathroom',
       area_id: 'bathroom',
       points: BATHROOM,
@@ -405,6 +509,58 @@ export const DEMO_FLAT: CardConfig = {
         'binary_sensor.bathroom_moisture',
         'button.litter_box_scoop',
       ],
+      // The hall is open to it, but the bathroom is not shown the way out.
+      hide_arrows: ['hall'],
+    },
+    {
+      id: 'hall',
+      floor_id: 'ground',
+      name: 'Hall',
+      area_id: 'hall',
+      points: HALL,
+      floor: { material: 'wood' },
+      hide_arrows: ['bathroom'],
+    },
+    {
+      id: 'landing',
+      floor_id: 'first',
+      name: 'Landing',
+      area_id: 'landing',
+      points: LANDING,
+      floor: { material: 'wood' },
+    },
+    {
+      id: 'study',
+      floor_id: 'first',
+      name: 'Study',
+      area_id: 'study',
+      points: STUDY,
+      floor: { material: 'wood' },
+      order: ['switch.desk_lamp', 'media_player.study_speaker'],
+    },
+    {
+      id: 'kids',
+      floor_id: 'first',
+      name: "Children's room",
+      area_id: 'kids_room',
+      points: KIDS,
+      floor: { material: 'carpet', color: '#b9b2a6' },
+    },
+    {
+      id: 'laundry',
+      floor_id: 'first',
+      name: 'Laundry',
+      area_id: 'laundry',
+      points: LAUNDRY,
+      floor: { material: 'tiles', color: '#8a8a8a' },
+    },
+    {
+      id: 'terrace',
+      floor_id: 'first',
+      name: 'Terrace',
+      area_id: 'terrace',
+      points: TERRACE,
+      floor: { material: 'terracotta' },
     },
   ],
   devices,
@@ -440,6 +596,10 @@ export const HA_DEMO_IDS: Record<string, string> = {
   'binary_sensor.bathroom_moisture': 'binary_sensor.basement_floor_wet',
   'button.litter_box_scoop': 'button.push',
   'weather.home': 'weather.demo_weather_south',
+  'light.hall': 'light.hall_light',
+  'switch.desk_lamp': 'switch.ac',
+  'media_player.study_speaker': 'media_player.kitchen',
+  'fan.kids_fan': 'fan.living_room_fan',
 }
 
 // What the made up devices report, for the dev page. Every entity starts
@@ -469,6 +629,10 @@ const NAMES: Record<string, string> = {
   'water_heater.boiler': 'Water heater',
   'binary_sensor.bathroom_moisture': 'Bathroom leak',
   'button.litter_box_scoop': 'Scoop',
+  'light.hall': 'Hall light',
+  'switch.desk_lamp': 'Desk lamp',
+  'media_player.study_speaker': 'Study speaker',
+  'fan.kids_fan': 'Fan',
 }
 
 function initial(entityId: string): { state: string; attributes: Record<string, unknown> } {
@@ -477,7 +641,10 @@ function initial(entityId: string): { state: string; attributes: Record<string, 
     case 'light':
       return { state: 'off', attributes: { supported_color_modes: ['color_temp'] } }
     case 'cover':
-      return { state: 'closed', attributes: { current_position: 0, device_class: 'blind', supported_features: 1 | 2 | 4 } }
+      return {
+        state: 'closed',
+        attributes: { current_position: 0, device_class: 'blind', supported_features: 1 | 2 | 4 },
+      }
     case 'media_player':
       return { state: 'off', attributes: {} }
     case 'climate':
