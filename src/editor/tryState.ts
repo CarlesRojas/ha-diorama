@@ -15,8 +15,9 @@ export type TryState = {
   on: boolean
   // 0 to 1, by the item's own level ids: open, tilt.
   levels: Record<string, number>
-  // Lights only. Missing is the light's own warm glow, the one it shows
-  // bound to a light that says nothing about its color.
+  // Lights only. Missing is the light's own glow, the one it shows bound to
+  // a light that says nothing about its color: the piece's light color, or
+  // the warm default.
   tint?: Tint
   // How many times its button has been tried, for the pieces that do one
   // thing for a press.
@@ -82,14 +83,15 @@ const fromSrgb = (r: number, g: number, b: number): [number, number, number] => 
   return [c.r, c.g, c.b]
 }
 
-// What the model is handed, the same shape a device's state takes.
-export function tryItemState(kind: DecorationKind, state: TryState): ItemState {
+// What the model is handed, the same shape a device's state takes. A light
+// with no tint glows in its own color, the one the piece is set to.
+export function tryItemState(kind: DecorationKind, state: TryState, lightColor?: string): ItemState {
   const tint = state.tint
   let glow: [number, number, number]
   if (tint?.mode === 'white') glow = fromSrgb(...kelvinToRgb(tint.kelvin))
   else {
     // Hex colors are sRGB, and three turns them linear on the way in.
-    const c = new Color(tint?.mode === 'color' ? tint.hex : LIGHT_GLOW_COLOR)
+    const c = new Color(tint?.mode === 'color' ? tint.hex : (lightColor ?? LIGHT_GLOW_COLOR))
     glow = [c.r, c.g, c.b]
   }
   return {

@@ -34,7 +34,7 @@ export default function ModelPreview({ item, className, style, boxRef, interacti
   const [resets, setResets] = useState(0)
   const kind = decorationKind(item.kind)
   if (!kind) return null
-  const glow = new Color(LIGHT_GLOW_COLOR)
+  const glow = new Color(item.light_color ?? LIGHT_GLOW_COLOR)
   const centered: DecorationConfig = { ...item, position: [0, 0], rotation: 0 }
   // Centered on where the item actually sits, so a door standing on the
   // floor is in frame and a wall light hangs at its own height. Ceiling

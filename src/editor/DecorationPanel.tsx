@@ -35,7 +35,7 @@ import {
 } from '#/components/ui/alert-dialog.tsx'
 import { cn } from '#/lib/utils.ts'
 import { deviceSignals, levelChannels } from '#/signals.ts'
-import { EDITOR_BOUND_COLOR, EDITOR_TINT_COLOR, ROOM_COLORS } from '#/theme.ts'
+import { EDITOR_BOUND_COLOR, EDITOR_TINT_COLOR, LIGHT_GLOW_COLOR, ROOM_COLORS } from '#/theme.ts'
 import { colorWell, deleteButton, field, group, groupTitle, iconButton, note, plainButton, row } from '#/editor/look.ts'
 import type { DecorationConfig, DeviceConfig, HomeAssistant, ModelConfig, RoomConfig } from '#/types.ts'
 import { decorationIcon, FAMILY_LABELS } from '#/decoration/icons.ts'
@@ -209,6 +209,9 @@ export default function DecorationPanel({
     const boundDevice = devices.find(d => d.decorations?.includes(item.id))
     const boundSignals = hass && boundDevice ? deviceSignals(hass, boundDevice.entity_id) : []
     const channels = hass && boundDevice ? levelChannels(hass, boundDevice.entity_id) : []
+    // A light piece takes a color of its own for when its device has none.
+    const isLight = kind.expresses.includes('color')
+    const deviceColored = boundSignals.includes('color') || boundSignals.includes('warmth')
     // The other pieces the same device stands behind, so what it drives can
     // be seen and let go of from here.
     const siblings = (boundDevice?.decorations ?? [])
@@ -621,6 +624,35 @@ export default function DecorationPanel({
               />
             </label>
           ))}
+          {/* What a light glows in when its device says no color: a switch,
+              or a light with only a brightness. A device that gives a color
+              or a white keeps its own. */}
+          {isLight && (
+            <>
+              <label className={cn(row, 'grid-cols-[96px_1fr_24px]')}>
+                Light color
+                <input
+                  type="color"
+                  className={colorWell}
+                  aria-label="Light color"
+                  value={item.light_color ?? LIGHT_GLOW_COLOR}
+                  onChange={e => onUpdate(item.id, { light_color: e.target.value })}
+                />
+                <ResetButton
+                  label="Light color"
+                  changed={
+                    item.light_color !== undefined && item.light_color.toLowerCase() !== LIGHT_GLOW_COLOR.toLowerCase()
+                  }
+                  onReset={() => onUpdate(item.id, { light_color: undefined })}
+                />
+              </label>
+              <p className={note}>
+                {deviceColored
+                  ? 'Its device gives a color of its own, which shows instead while it is on.'
+                  : 'The color it glows in when on, for a device that gives no color of its own, such as a switch.'}
+              </p>
+            </>
+          )}
         </div>
 
         {/* Every look the piece has, tried in the editor only. One with a

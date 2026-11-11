@@ -102,6 +102,8 @@ function itemState(
   device: DeviceConfig,
   guesses: Map<string, boolean>,
   presses: Map<string, Presses> = NO_PRESSES,
+  // The piece's own color when on, for a device that says none.
+  lightColor?: string,
 ): ItemState | null {
   const entityId = device.entity_id
   const signals = deviceSignals(hass, entityId)
@@ -110,7 +112,10 @@ function itemState(
   // A guess stands until the device agrees with it, or its timer ends it.
   if (guesses.get(entityId) === v.on) guesses.delete(entityId)
   const on = guesses.get(entityId) ?? v.on ?? false
-  let glow: [number, number, number] = [baseGlow.r, baseGlow.g, baseGlow.b]
+  // A device that gives no color of its own, a switch or a light with only
+  // a brightness, glows in the piece's color, or the warm default.
+  const base = lightColor ? scratch.set(lightColor) : baseGlow
+  let glow: [number, number, number] = [base.r, base.g, base.b]
   // Home Assistant's colors are sRGB. Handing the raw numbers to three,
   // which works in linear, washed every color out toward white: a magenta
   // light came out pale pink.
@@ -311,12 +316,12 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
     // device, and one without shows its first look.
     const tried = onTry && kind && canTry(kind)
     const tryState = tried ? tries?.[item.id] : undefined
-    const read = device && hass ? itemState(hass, device, guesses, presses) : null
+    const read = device && hass ? itemState(hass, device, guesses, presses, item.light_color) : null
     const flip = !!item.invert && !!kind && invertible(kind)
     const real = flip ? inverted(read) : read
     // What the device says that trying has no control for, like a reading,
     // is kept.
-    const state = kind && tryState ? { ...real, ...tryItemState(kind, tryState) } : real
+    const state = kind && tryState ? { ...real, ...tryItemState(kind, tryState, item.light_color) } : real
     return { device, kind, tried, state, flip }
   }
   const states = new Map(decorations.map(item => [item.id, stateOf(item)]))
