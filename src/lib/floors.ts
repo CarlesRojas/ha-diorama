@@ -171,8 +171,10 @@ export function floorView(config: CardConfig, floor: string | null | undefined):
       const { on: _on, floor: _floor, ...rest } = item
       return [{ ...rest, room: link.upper.room, below: link.rise }]
     })
+  const camera = config.floors?.find(f => f.id === floor)?.camera ?? config.camera
   return {
     ...config,
+    camera,
     rooms,
     decorations: [...(config.decorations ?? []).filter(item => ids.has(item.room)), ...arriving],
     devices: (config.devices ?? []).filter(device => ids.has(device.room)),

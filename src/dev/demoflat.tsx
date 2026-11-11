@@ -3,7 +3,7 @@
 //
 //   http://localhost:5173/src/dev/demoflat.html
 //
-// Query parameters: `flip=light.bedroom,cover.kitchen_blind` starts those
+// Query parameters: `flip=light.bedroom,cover.hall_blind` starts those
 // entities on, open or unlocked; `camera=x,y,z,tx,ty,tz` overrides the
 // opening view; `sun=6` puts the sun at that elevation in degrees, so the
 // room can be shot at dusk; `light` uses Home Assistant's light theme colors

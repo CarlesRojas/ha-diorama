@@ -81,6 +81,9 @@ export type FloorConfig = {
   id: string
   name?: string
   level?: number
+  // The view the card opens this floor with. Without one it takes the
+  // card's own, framed on this floor's rooms.
+  camera?: CameraView
 }
 
 export type RoomConfig = {

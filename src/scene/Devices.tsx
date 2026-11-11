@@ -1,9 +1,10 @@
 import { betweenOf, coverAt, coversOver, roomLookedFrom, type Between } from '#/decoration/between.ts'
-import { decorationKind, invertible, type DecorationKind } from '#/decoration/catalog.ts'
+import { decorationKind, invertible, paramValue, type DecorationKind } from '#/decoration/catalog.ts'
 import { canTry, initialTry, tryItemState, type TryState, type TryStates } from '#/editor/tryState.ts'
 import { elevationOf } from '#/geometry/elevation.ts'
 import { DOOR_KINDS } from '#/geometry/passages.ts'
 import DecorationModel from '#/scene/decor/DecorationModel.tsx'
+import type { Fade } from '#/scene/decor/fade.tsx'
 import type { DragAction } from '#/scene/decor/drag.tsx'
 import { grabs, type Grab } from '#/scene/drags.ts'
 import type { PressAction } from '#/scene/decor/press.ts'
@@ -64,6 +65,11 @@ const scratch = new Color()
 // for as long as the device took to answer, which for a lamp on a cloud
 // account can be a second or two.
 const GUESS_MS = 2000
+
+// How much of a flight to another floor shows whole on each floor, from its
+// own end, and over how much more of it it melts away, as shares of its rise.
+const STAIRS_SHOWN = 0.3
+const STAIRS_FADE = 0.35
 
 // The bit in a cover's supported features that says it takes a position.
 const SET_POSITION = 4
@@ -369,7 +375,7 @@ export default function Devices({
   return (
     <>
       {decorations.map(item => {
-        const { device, tried, state, flip } = states.get(item.id) ?? stateOf(item)
+        const { device, kind, tried, state, flip } = states.get(item.id) ?? stateOf(item)
         // A flight seen from the floor it climbs up to is on the floor below,
         // so the editor does not pick it from here.
         const onPick = item.below ? undefined : pick
@@ -470,6 +476,17 @@ export default function Devices({
               }
             : undefined
         actions.set(item.id, { click: climb ?? onClick, open: onOpen, drag, pass })
+        // A flight that leads to another floor shows only its own end on
+        // each one: downstairs its foot, melting away above half way up,
+        // and upstairs its top, melting away below.
+        const floor = floorUnder(item.room, between) - (item.below ?? 0)
+        const rise = kind?.id === 'stairs' ? paramValue(kind, item.params, 'height', item.variant) : 0
+        const fade: Fade | undefined =
+          rise > 0 && (item.below || stairs?.has(item.id))
+            ? item.below
+              ? { from: floor + rise * (1 - STAIRS_SHOWN), to: floor + rise * (1 - STAIRS_SHOWN - STAIRS_FADE) }
+              : { from: floor + rise * STAIRS_SHOWN, to: floor + rise * (STAIRS_SHOWN + STAIRS_FADE) }
+            : undefined
         const h = handler(item.id)
         return (
           <DecorationModel
@@ -478,7 +495,8 @@ export default function Devices({
             all={decorations}
             room={roomById.get(item.room)}
             between={between}
-            floor={floorUnder(item.room, between) - (item.below ?? 0)}
+            floor={floor}
+            fade={fade}
             state={state}
             raise={raise(item)}
             onClick={(climb ?? onClick) && h.click}

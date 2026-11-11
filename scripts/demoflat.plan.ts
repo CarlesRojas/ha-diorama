@@ -1,9 +1,9 @@
 // The demo flat: a small, fully furnished home with a living room, a
-// kitchen open to it, a bedroom, a bathroom and a hall whose stairs climb
-// to a first floor with a study, a children's room, a laundry and a roof
-// terrace. scripts/demoflat.ts writes it to demoflat.yaml and the dev page
-// at src/dev/demoflat.html draws it with made up devices, for the
-// screenshots in the README.
+// kitchen open to it, a bedroom, a bathroom, and a hall off the living room
+// whose stairs climb to a first floor with a study, a children's room, a
+// laundry and a roof terrace. scripts/demoflat.ts writes it to demoflat.yaml
+// and the dev page at src/dev/demoflat.html draws it with made up devices,
+// for the screenshots in the README.
 import type {
   Area,
   CardConfig,
@@ -41,12 +41,14 @@ const BATHROOM: Point[] = [
   [7.8, 2.2],
   [4.2, 2.2],
 ]
-// The hall along the right, with the stairs up its outside wall.
+// The hall along the left, through a door from the living room, with the
+// stairs up its outside wall. They start beside the door and climb away
+// from it, so coming in from the living room the first step is right there.
 const HALL: Point[] = [
-  [7.8, 0],
-  [9.4, 0],
-  [9.4, 5.6],
-  [7.8, 5.6],
+  [-1.6, 0],
+  [0, 0],
+  [0, 5.6],
+  [-1.6, 5.6],
 ]
 
 // The first floor stands over the ground floor's rooms: the terrace over
@@ -59,10 +61,10 @@ const KIDS: Point[] = KITCHEN
 const STUDY: Point[] = BEDROOM
 const LAUNDRY: Point[] = BATHROOM
 const LANDING: Point[] = [
-  [7.8, 3.65],
-  [9.4, 3.65],
-  [9.4, 5.6],
-  [7.8, 5.6],
+  [-1.6, 3.65],
+  [0, 3.65],
+  [0, 5.6],
+  [-1.6, 5.6],
 ]
 
 // Every piece in the flat, placed and colored in the editor.
@@ -90,25 +92,25 @@ const decorations: DecorationConfig[] = [
     rotation: 180,
     on: 'sideboard',
   },
-  { id: 'living_plant', kind: 'plant_large', room: 'living', position: [0.4, 0.4], variant: 'fiddle' },
+  { id: 'living_plant', kind: 'plant_large', room: 'living', position: [3.8, 2.7], variant: 'fiddle' },
   { id: 'floor_lamp', kind: 'light_floor', room: 'living', position: [0.5, 2.45], variant: 'tmm' },
   {
-    id: 'living_window',
+    id: 'hall_window',
     kind: 'window',
-    room: 'kitchen',
-    position: [0, 4.3],
+    room: 'hall',
+    position: [-1.6, 4.6],
     rotation: 90,
     variant: 'casement',
-    params: { height: 1.45, sill: 0.65 },
+    params: { height: 1.45, sill: 0.65, width: 0.75 },
   },
   {
-    id: 'living_blind',
+    id: 'hall_blind',
     kind: 'blind',
-    room: 'kitchen',
-    position: [0, 4.3],
+    room: 'hall',
+    position: [-1.6, 4.6],
     rotation: 90,
     variant: 'venetian',
-    params: { outside: 1 },
+    params: { outside: 1, width: 0.75 },
   },
   { id: 'front_door', kind: 'door', room: 'living', position: [3.7, 0], rotation: 180, variant: 'panel' },
   { id: 'front_lock', kind: 'smart_lock', room: 'living', position: [3.05, 0], rotation: 180 },
@@ -190,7 +192,15 @@ const decorations: DecorationConfig[] = [
     on: 'nightstand_b',
   },
   { id: 'bedroom_light', kind: 'light_ceiling', room: 'bedroom', position: [6, 3.4] },
-  { id: 'hall_door', kind: 'door', room: 'bedroom', position: [7.8, 4.6], rotation: 270, variant: 'flush' },
+  {
+    id: 'bedroom_window',
+    kind: 'window',
+    room: 'bedroom',
+    position: [7.8, 4.45],
+    rotation: 270,
+    variant: 'casement',
+    params: { height: 1.4, sill: 0.7, width: 0.75 },
+  },
   {
     id: 'dresser',
     kind: 'dresser',
@@ -290,7 +300,7 @@ const decorations: DecorationConfig[] = [
     params: { throw: 3.2 },
   },
   { id: 'projector_screen', kind: 'projector_screen', room: 'bedroom', position: [6, 2.35], params: { inches: 130 } },
-  { id: 'living_camera', kind: 'camera', room: 'living', position: [0, 1], rotation: 270 },
+  { id: 'living_camera', kind: 'camera', room: 'living', position: [0, 2.1], rotation: 270 },
   { id: 'alarm', kind: 'alarm_panel', room: 'living', position: [3.05, 0], rotation: 180 },
   {
     id: 'kitchen_strip',
@@ -301,7 +311,7 @@ const decorations: DecorationConfig[] = [
     params: { length: 3, height: 1.45 },
   },
   { id: 'bedroom_speaker', kind: 'speaker', room: 'bedroom', position: [7.55, 2.65], on: 'dresser', variant: 'pod' },
-  { id: 'humidifier', kind: 'humidifier', room: 'bedroom', position: [4.55, 2.6] },
+  { id: 'humidifier', kind: 'humidifier', room: 'bedroom', position: [7.55, 5.15] },
   {
     id: 'water_heater',
     kind: 'water_heater',
@@ -314,31 +324,37 @@ const decorations: DecorationConfig[] = [
   { id: 'bathroom_motion', kind: 'motion_sensor', room: 'bathroom', position: [4.2, 1.8], rotation: 90 },
   { id: 'litter_box', kind: 'litter_box', room: 'bathroom', position: [4.56, 0.32], rotation: 90 },
 
-  // The hall, and the stairs that climb from it to the first floor.
+  // The hall, through a door from the living room, and the stairs that climb
+  // from beside that door to the first floor, their foot to the south and
+  // their top to the north, with the rail on their open side.
+  { id: 'hall_door', kind: 'door', room: 'living', position: [0, 0.6], rotation: 90, variant: 'flush' },
+  { id: 'stairs', kind: 'stairs', room: 'hall', position: [-1.13, 1.975] },
+  { id: 'hall_light', kind: 'light_ceiling', room: 'hall', position: [-0.8, 4.6], variant: 'dome' },
+  { id: 'shoe_rack', kind: 'shoe_rack', room: 'hall', position: [-0.8, 5.42] },
+  { id: 'hall_plant', kind: 'plant_large', room: 'hall', position: [-0.3, 4.0], variant: 'fiddle' },
+
+  // The landing at the top of the stairs, with a rail along the stairwell
+  // beside the flight, and one along the terrace's side of it.
+  { id: 'landing_rail', kind: 'railing', room: 'landing', position: [-0.34, 3.7], params: { width: 0.6 } },
+  { id: 'landing_light', kind: 'light_ceiling', room: 'landing', position: [-0.8, 4.6], variant: 'dome' },
+  { id: 'kids_landing_door', kind: 'door', room: 'kids', position: [0, 4.6], rotation: 90, variant: 'flush' },
   {
-    id: 'stairs',
-    kind: 'stairs',
-    room: 'hall',
-    position: [8.93, 1.95],
-    params: { rail: 1 },
+    id: 'terrace_rail',
+    kind: 'railing',
+    room: 'terrace',
+    position: [0.05, 1.525],
+    rotation: 90,
+    params: { width: 3 },
   },
-  { id: 'hall_light', kind: 'light_ceiling', room: 'hall', position: [8.6, 4.6], variant: 'dome' },
   {
-    id: 'hall_window',
+    id: 'study_window',
     kind: 'window',
-    room: 'hall',
-    position: [9.4, 4.6],
+    room: 'study',
+    position: [7.8, 4.45],
     rotation: 270,
     variant: 'casement',
     params: { height: 1.4, sill: 0.7, width: 0.75 },
   },
-  { id: 'shoe_rack', kind: 'shoe_rack', room: 'hall', position: [8.0, 1.0], rotation: 90 },
-  { id: 'hall_plant', kind: 'plant_large', room: 'hall', position: [8.15, 5.2], variant: 'fiddle' },
-
-  // The landing at the top of the stairs.
-  { id: 'landing_rail', kind: 'railing', room: 'landing', position: [8.11, 3.7], params: { width: 0.6 } },
-  { id: 'landing_light', kind: 'light_ceiling', room: 'landing', position: [8.6, 4.6], variant: 'dome' },
-  { id: 'study_door', kind: 'door', room: 'study', position: [7.8, 4.6], rotation: 270, variant: 'flush' },
 
   // The study, over the bedroom.
   { id: 'desk', kind: 'desk', room: 'study', position: [6, 5.25] },
@@ -365,15 +381,6 @@ const decorations: DecorationConfig[] = [
   { id: 'kids_sofa', kind: 'kids_sofa', room: 'kids', position: [3.3, 5.2] },
   { id: 'kids_rug', kind: 'rug', room: 'kids', position: [2.4, 4.2], variant: 'kilim' },
   { id: 'kids_fan', kind: 'fan_floor', room: 'kids', position: [3.85, 3.4] },
-  {
-    id: 'kids_window',
-    kind: 'window',
-    room: 'kids',
-    position: [0, 4.3],
-    rotation: 90,
-    variant: 'casement',
-    params: { height: 1.45, sill: 0.65 },
-  },
   { id: 'terrace_door', kind: 'door', room: 'kids', position: [2.6, 3.05], rotation: 180, variant: 'glazed' },
 
   // The laundry, over the bathroom.
@@ -404,7 +411,7 @@ device('vacuum.robot', 'vacuum')
 device('light.bathroom', 'bathroom_spot_a', 'bathroom_spot_b')
 device('light.bedside_lamps', 'bedside_a', 'bedside_b')
 device('fan.ceiling_fan', 'fan_ceiling-1')
-device('cover.kitchen_blind', 'living_blind')
+device('cover.hall_blind', 'hall_blind')
 device('climate.thermostat', 'thermostat')
 device('media_player.living_tv', 'tv', 'soundbar')
 device('lock.front_door', 'front_lock')
@@ -467,13 +474,8 @@ export const DEMO_FLAT: CardConfig = {
       floor: { material: 'wood' },
       camera: { position: [-1.26, 3.91, -1.25], target: [2.29, 0.3, -4.94] },
       entities: ['weather.home'],
-      order: [
-        'light.kitchen_pendants',
-        'switch.kitchen_strip',
-        'cover.kitchen_blind',
-        'weather.home',
-        'climate.thermostat',
-      ],
+      hide_arrows: ['hall'],
+      order: ['light.kitchen_pendants', 'switch.kitchen_strip', 'weather.home', 'climate.thermostat'],
     },
     {
       id: 'bedroom',
@@ -509,8 +511,6 @@ export const DEMO_FLAT: CardConfig = {
         'binary_sensor.bathroom_moisture',
         'button.litter_box_scoop',
       ],
-      // The hall is open to it, but the bathroom is not shown the way out.
-      hide_arrows: ['hall'],
     },
     {
       id: 'hall',
@@ -519,7 +519,10 @@ export const DEMO_FLAT: CardConfig = {
       area_id: 'hall',
       points: HALL,
       floor: { material: 'wood' },
-      hide_arrows: ['bathroom'],
+      order: ['light.hall', 'cover.hall_blind'],
+      // Open to the kitchen along their shared wall, but the way in is the
+      // door from the living room.
+      hide_arrows: ['kitchen'],
     },
     {
       id: 'landing',
@@ -578,7 +581,7 @@ export const HA_DEMO_IDS: Record<string, string> = {
   'light.bathroom': 'light.ceiling_lights',
   'light.bedside_lamps': 'light.bed_light',
   'fan.ceiling_fan': 'fan.ceiling_fan',
-  'cover.kitchen_blind': 'cover.hall_window',
+  'cover.hall_blind': 'cover.hall_window',
   'climate.thermostat': 'climate.hvac',
   'media_player.living_tv': 'media_player.living_room',
   'lock.front_door': 'lock.front_door',
@@ -613,7 +616,7 @@ const NAMES: Record<string, string> = {
   'camera.backyard': 'Backyard camera',
   'light.kitchen_pendants': 'Kitchen pendants',
   'switch.kitchen_strip': 'Kitchen light strip',
-  'cover.kitchen_blind': 'Kitchen blind',
+  'cover.hall_blind': 'Hall blind',
   'weather.home': 'Home',
   'climate.thermostat': 'Thermostat',
   'light.bedside_lamps': 'Bedside lamps',

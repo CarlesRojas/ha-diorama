@@ -8,17 +8,15 @@ import { floating, iconButton } from '#/editor/look.ts'
 import type { Floor } from '#/lib/floors.ts'
 import { cn } from '#/lib/utils.ts'
 import { EDITOR_TINT_COLOR } from '#/theme.ts'
-import { faArrowDown, faArrowUp, faPen, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons'
+import { faArrowDown, faArrowUp, faLayerGroup, faPen, faPlus, faTrash } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { useEffect, useRef, useState } from 'react'
 
 type Props = {
-  // From the lowest up, read left to right. A home with no floors yet has
-  // the one it is on, which is all it can pick.
+  // From the lowest up, read left to right. A home with one floor, or none
+  // yet, has nothing to pick, and only the button that adds one shows.
   floors: Floor[]
   active: string | null
-  // How many rooms each floor has, by id, since only an empty one can go.
-  rooms: Record<string, number>
   onPick: (id: string) => void
   onAdd: (below: boolean) => void
   // The floors in their new order, from the lowest up.
@@ -30,7 +28,7 @@ type Props = {
 // The floors of the home as one control, the floor being edited raised the
 // way the chosen tool is. Drag a floor to put it above or below another,
 // double click it to rename it, and right click it for the rest.
-export default function FloorPicker({ floors, active, rooms, onPick, onAdd, onOrder, onRename, onDelete }: Props) {
+export default function FloorPicker({ floors, active, onPick, onAdd, onOrder, onRename, onDelete }: Props) {
   const [menu, setMenu] = useState<{ at: ContextMenuPosition; id: string } | null>(null)
   const [renaming, setRenaming] = useState<string | null>(null)
   const [dragged, setDragged] = useState<string | null>(null)
@@ -48,6 +46,8 @@ export default function FloorPicker({ floors, active, rooms, onPick, onAdd, onOr
 
   const picked = floors.find(floor => floor.id === menu?.id)
   const index = picked ? floors.indexOf(picked) : -1
+
+  if (single) return <AddButton onAdd={() => onAdd(false)} first />
 
   return (
     <>
@@ -69,16 +69,11 @@ export default function FloorPicker({ floors, active, rooms, onPick, onAdd, onOr
             <button
               key={floor.id}
               type="button"
-              draggable={!single}
-              title={
-                single
-                  ? 'The floor every room is on. Add a floor to build another one over it.'
-                  : `${floor.name}. Drag to move it up or down, double click to rename it.`
-              }
+              draggable
+              title={`${floor.name}. Drag to move it up or down, double click to rename it.`}
               onClick={() => onPick(floor.id)}
-              onDoubleClick={() => !single && setRenaming(floor.id)}
+              onDoubleClick={() => setRenaming(floor.id)}
               onContextMenu={e => {
-                if (single) return
                 e.preventDefault()
                 setMenu({ at: { x: e.clientX, y: e.clientY }, id: floor.id })
               }}
@@ -98,12 +93,11 @@ export default function FloorPicker({ floors, active, rooms, onPick, onAdd, onOr
                 setDragged(null)
               }}
               onDragEnd={() => setDragged(null)}
-              style={on && !single ? { color: EDITOR_TINT_COLOR } : undefined}
+              style={on ? { color: EDITOR_TINT_COLOR } : undefined}
               className={cn(
-                'flex h-8 items-center rounded-lg px-2.5 text-[13px] font-medium whitespace-nowrap transition-colors select-none',
-                single ? 'text-label-2 cursor-default' : 'cursor-pointer',
-                on && !single && 'bg-raised shadow-[0_1px_3px_rgba(0,0,0,0.2)]',
-                !on && !single && 'text-label-2 hover:text-(--primary-text-color)',
+                'flex h-8 cursor-pointer items-center rounded-lg px-2.5 text-[13px] font-medium whitespace-nowrap transition-colors select-none',
+                on && 'bg-raised shadow-[0_1px_3px_rgba(0,0,0,0.2)]',
+                !on && 'text-label-2 hover:text-(--primary-text-color)',
                 dragged === floor.id && 'opacity-40',
               )}
             >
@@ -111,7 +105,7 @@ export default function FloorPicker({ floors, active, rooms, onPick, onAdd, onOr
             </button>
           )
         })}
-        <AddButton onAdd={() => onAdd(false)} first={single} />
+        <AddButton onAdd={() => onAdd(false)} first={false} />
       </div>
 
       {menu && picked && (
@@ -155,14 +149,13 @@ export default function FloorPicker({ floors, active, rooms, onPick, onAdd, onOr
           <ContextMenuSeparator />
           <ContextMenuItem
             variant="destructive"
-            disabled={(rooms[picked.id] ?? 0) > 0}
             onSelect={() => {
               onDelete(picked.id)
               setMenu(null)
             }}
           >
             <FontAwesomeIcon icon={faTrash} className="size-3" />
-            {(rooms[picked.id] ?? 0) > 0 ? 'Delete floor (empty it first)' : 'Delete floor'}
+            Delete floor
           </ContextMenuItem>
         </ContextMenu>
       )}
@@ -198,13 +191,14 @@ function RenameField({ floor, onDone }: { floor: Floor; onDone: (name: string | 
   )
 }
 
-// Adds a floor over the highest. On a home with none yet it says so, with
-// a tip like the toolbar's.
+// Adds a floor over the highest. On a home with one floor it stands alone
+// among the toolbar's tools, as a stack of floors rather than a bare plus,
+// with a tip like theirs.
 function AddButton({ onAdd, first }: { onAdd: () => void; first: boolean }) {
   return (
     <div className="group relative">
       <button type="button" aria-label="Add a floor" onClick={onAdd} className={cn(iconButton, 'size-8')}>
-        <FontAwesomeIcon icon={faPlus} className="size-3" />
+        <FontAwesomeIcon icon={first ? faLayerGroup : faPlus} className={first ? 'size-[15px]' : 'size-3'} />
       </button>
       <div
         className={cn(

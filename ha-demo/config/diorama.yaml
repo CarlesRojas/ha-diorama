@@ -60,10 +60,11 @@ views:
               target: [2.29, 0.3, -4.94]
             entities:
               - weather.demo_weather_south
+            hide_arrows:
+              - hall
             order:
               - light.kitchen_lights
               - switch.decorative_lights
-              - cover.hall_window
               - weather.demo_weather_south
               - climate.hvac
           - id: bedroom
@@ -111,30 +112,31 @@ views:
               - water_heater.demo_water_heater_celsius
               - binary_sensor.basement_floor_wet
               - button.push
-            hide_arrows:
-              - hall
           - id: hall
             floor_id: ground
             name: Hall
             area_id: hall
             points:
-              - [7.8, 0]
-              - [9.4, 0]
-              - [9.4, 5.6]
-              - [7.8, 5.6]
+              - [-1.6, 0]
+              - [0, 0]
+              - [0, 5.6]
+              - [-1.6, 5.6]
             floor:
               material: wood
+            order:
+              - light.hall_light
+              - cover.hall_window
             hide_arrows:
-              - bathroom
+              - kitchen
           - id: landing
             floor_id: first
             name: Landing
             area_id: landing
             points:
-              - [7.8, 3.65]
-              - [9.4, 3.65]
-              - [9.4, 5.6]
-              - [7.8, 5.6]
+              - [-1.6, 3.65]
+              - [0, 3.65]
+              - [0, 5.6]
+              - [-1.6, 5.6]
             floor:
               material: wood
           - id: study
@@ -221,10 +223,10 @@ views:
             decorations:
               - fan_ceiling-1
           - entity_id: cover.hall_window
-            room: kitchen
-            position: [0, 4.3]
+            room: hall
+            position: [-1.6, 4.6]
             decorations:
-              - living_blind
+              - hall_blind
           - entity_id: climate.hvac
             room: kitchen
             position: [4.2, 4.15]
@@ -248,7 +250,7 @@ views:
               - kitchen_strip
           - entity_id: camera.backyard_camera
             room: living
-            position: [0, 1]
+            position: [0, 2.1]
             decorations:
               - living_camera
           - entity_id: binary_sensor.movement_backyard
@@ -278,7 +280,7 @@ views:
               - bedroom_speaker
           - entity_id: humidifier.humidifier
             room: bedroom
-            position: [4.55, 2.6]
+            position: [7.55, 5.15]
             decorations:
               - humidifier
           - entity_id: cover.projector_screen
@@ -308,7 +310,7 @@ views:
               - litter_box
           - entity_id: light.hall_light
             room: hall
-            position: [8.6, 4.6]
+            position: [-0.8, 4.6]
             decorations:
               - hall_light
               - landing_light
@@ -376,30 +378,32 @@ views:
           - id: living_plant
             kind: plant_large
             room: living
-            position: [0.4, 0.4]
+            position: [3.8, 2.7]
             variant: fiddle
           - id: floor_lamp
             kind: light_floor
             room: living
             position: [0.5, 2.45]
             variant: tmm
-          - id: living_window
+          - id: hall_window
             kind: window
-            room: kitchen
-            position: [0, 4.3]
+            room: hall
+            position: [-1.6, 4.6]
             rotation: 90
             variant: casement
             params:
               height: 1.45
               sill: 0.65
-          - id: living_blind
+              width: 0.75
+          - id: hall_blind
             kind: blind
-            room: kitchen
-            position: [0, 4.3]
+            room: hall
+            position: [-1.6, 4.6]
             rotation: 90
             variant: venetian
             params:
               outside: 1
+              width: 0.75
           - id: front_door
             kind: door
             room: living
@@ -564,12 +568,16 @@ views:
             kind: light_ceiling
             room: bedroom
             position: [6, 3.4]
-          - id: hall_door
-            kind: door
+          - id: bedroom_window
+            kind: window
             room: bedroom
-            position: [7.8, 4.6]
+            position: [7.8, 4.45]
             rotation: 270
-            variant: flush
+            variant: casement
+            params:
+              height: 1.4
+              sill: 0.7
+              width: 0.75
           - id: dresser
             kind: dresser
             room: bedroom
@@ -690,7 +698,7 @@ views:
           - id: living_camera
             kind: camera
             room: living
-            position: [0, 1]
+            position: [0, 2.1]
             rotation: 270
           - id: alarm
             kind: alarm_panel
@@ -714,7 +722,7 @@ views:
           - id: humidifier
             kind: humidifier
             room: bedroom
-            position: [4.55, 2.6]
+            position: [7.55, 5.15]
           - id: water_heater
             kind: water_heater
             room: bathroom
@@ -735,54 +743,64 @@ views:
             room: bathroom
             position: [4.56, 0.32]
             rotation: 90
+          - id: hall_door
+            kind: door
+            room: living
+            position: [0, 0.6]
+            rotation: 90
+            variant: flush
           - id: stairs
             kind: stairs
             room: hall
-            position: [8.93, 1.95]
-            params:
-              rail: 1
+            position: [-1.13, 1.975]
           - id: hall_light
             kind: light_ceiling
             room: hall
-            position: [8.6, 4.6]
+            position: [-0.8, 4.6]
             variant: dome
-          - id: hall_window
-            kind: window
+          - id: shoe_rack
+            kind: shoe_rack
             room: hall
-            position: [9.4, 4.6]
+            position: [-0.8, 5.42]
+          - id: hall_plant
+            kind: plant_large
+            room: hall
+            position: [-0.3, 4]
+            variant: fiddle
+          - id: landing_rail
+            kind: railing
+            room: landing
+            position: [-0.34, 3.7]
+            params:
+              width: 0.6
+          - id: landing_light
+            kind: light_ceiling
+            room: landing
+            position: [-0.8, 4.6]
+            variant: dome
+          - id: kids_landing_door
+            kind: door
+            room: kids
+            position: [0, 4.6]
+            rotation: 90
+            variant: flush
+          - id: terrace_rail
+            kind: railing
+            room: terrace
+            position: [0.05, 1.525]
+            rotation: 90
+            params:
+              width: 3
+          - id: study_window
+            kind: window
+            room: study
+            position: [7.8, 4.45]
             rotation: 270
             variant: casement
             params:
               height: 1.4
               sill: 0.7
               width: 0.75
-          - id: shoe_rack
-            kind: shoe_rack
-            room: hall
-            position: [8, 1]
-            rotation: 90
-          - id: hall_plant
-            kind: plant_large
-            room: hall
-            position: [8.15, 5.2]
-            variant: fiddle
-          - id: landing_rail
-            kind: railing
-            room: landing
-            position: [8.11, 3.7]
-            params:
-              width: 0.6
-          - id: landing_light
-            kind: light_ceiling
-            room: landing
-            position: [8.6, 4.6]
-            variant: dome
-          - id: study_door
-            kind: door
-            room: study
-            position: [7.8, 4.6]
-            rotation: 270
-            variant: flush
           - id: desk
             kind: desk
             room: study
@@ -852,15 +870,6 @@ views:
             kind: fan_floor
             room: kids
             position: [3.85, 3.4]
-          - id: kids_window
-            kind: window
-            room: kids
-            position: [0, 4.3]
-            rotation: 90
-            variant: casement
-            params:
-              height: 1.45
-              sill: 0.65
           - id: terrace_door
             kind: door
             room: kids
