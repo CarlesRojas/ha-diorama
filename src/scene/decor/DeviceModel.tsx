@@ -18,6 +18,7 @@ import { useEased, useTravel } from '#/scene/decor/ease.ts'
 import { useWarmed } from '#/scene/warm.ts'
 import Vacuum from '#/scene/decor/Vacuum.tsx'
 import PergolaAwning from '#/scene/decor/Pergola.tsx'
+import FoldingAwning from '#/scene/decor/Awnings.tsx'
 import { CeilingFan, FloorFan, Radiator } from '#/scene/decor/Climate.tsx'
 import { FAN_SPEED } from '#/scene/decor/pressed.ts'
 import { Beam, Console, FloorSpeaker, PortableProjector, Speaker } from '#/scene/decor/Media.tsx'
@@ -26,7 +27,7 @@ import { MODE_HEX } from '#/tiles/modes.ts'
 import { useMemo, useRef, type ReactNode } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useLive } from '#/scene/live.ts'
-import { DoubleSide, ExtrudeGeometry, Quaternion, Vector3, type MeshStandardMaterial, type PointLight } from 'three'
+import { DoubleSide, ExtrudeGeometry, type MeshStandardMaterial, type PointLight } from 'three'
 
 type Props = {
   kind: DecorationKind
@@ -73,23 +74,6 @@ function Plate({
 }
 
 // Media, climate, covers, security and the small smart home fittings.
-type Vec3 = [number, number, number]
-
-// A straight rod between two points: one cylinder moved and stretched into
-// place, so an arm that folds as a cover runs is never rebuilt.
-function Rod({ from, to, radius, children }: { from: Vec3; to: Vec3; radius: number; children: ReactNode }) {
-  const a = new Vector3(...from)
-  const dir = new Vector3(...to).sub(a)
-  const length = Math.max(dir.length(), 0.001)
-  const turn = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), dir.divideScalar(length))
-  const mid = a.addScaledVector(dir, length / 2)
-  return (
-    <mesh position={mid.toArray()} quaternion={turn} scale={[1, length, 1]} castShadow>
-      <cylinderGeometry args={[radius, radius, 1, 12]} />
-      {children}
-    </mesh>
-  )
-}
 
 // A smoke alarm going off: its ring flashes twice a second and a strong
 // red light under it washes the floor and the furniture round it, the way
@@ -710,62 +694,20 @@ export default function DeviceModel({ kind, item, state, room, all }: Props) {
         )
       }
       if (awning) {
-        // After the Markilux 990: the cloth runs out of a cassette on a
-        // front profile carried by two folding arms, which open out from
-        // brackets under the cassette as the awning extends.
-        const pitch = 0.25
-        const reach = full * out
-        const cassette = { h: 0.12, d: 0.16 }
-        const endY = -cassette.h + 0.02 - reach * Math.sin(pitch)
-        const endZ = cassette.d - 0.02 + reach * Math.cos(pitch)
-        const armX = w / 2 - Math.min(0.15, w * 0.1)
-        // Each arm is two halves, as long as the full extension needs, and
-        // never so long that the two meet when they fold.
-        const half = Math.min(full * 0.52, armX - 0.05)
-        const metal = <Material color={c(head)} material={m(head)} />
+        // The folding arm styles hang on the wall alone. The two that came
+        // later call their frame by that name, and the open one has a
+        // second color for the stripes in its cloth.
+        const frame = style === 'folding' ? head : 'frame'
         return (
-          <group>
-            <Slab size={[w + 0.04, cassette.h, cassette.d]} radius={0.05} position={[0, -cassette.h, cassette.d / 2]}>
-              {metal}
-            </Slab>
-            <group position={[0, -cassette.h + 0.02, cassette.d - 0.02]} rotation={[pitch, 0, 0]} scale={[1, 1, out]}>
-              <Slab size={[w - 0.04, 0.01, full]} radius={0.005} position={[0, 0, full / 2]}>
-                <Material color={c(cloth)} material={m(cloth)} />
-              </Slab>
-            </group>
-            {/* The front profile, with a short valance hanging from it. */}
-            <Slab size={[w, 0.06, 0.07]} radius={0.02} position={[0, endY - 0.05, endZ]}>
-              {metal}
-            </Slab>
-            <Slab size={[w - 0.02, 0.16, 0.006]} radius={0.002} bevel={0.001} position={[0, endY - 0.21, endZ + 0.03]}>
-              <Material color={c(cloth)} material={m(cloth)} />
-            </Slab>
-            {[-1, 1].map(sx => {
-              const shoulder: Vec3 = [sx * armX, -cassette.h - 0.07, 0.06]
-              const hand: Vec3 = [sx * armX, endY - 0.02, endZ - 0.02]
-              const span = Math.hypot(hand[1] - shoulder[1], hand[2] - shoulder[2])
-              const bend = Math.sqrt(Math.max(half * half - (span / 2) ** 2, 0))
-              // The elbow swings in toward the middle as the arm folds.
-              const elbow: Vec3 = [sx * (armX - bend), (shoulder[1] + hand[1]) / 2, (shoulder[2] + hand[2]) / 2]
-              return (
-                <group key={sx}>
-                  <Slab size={[0.08, 0.1, 0.07]} radius={0.015} position={[sx * armX, -cassette.h - 0.1, 0.035]}>
-                    {metal}
-                  </Slab>
-                  <Rod from={shoulder} to={elbow} radius={0.018}>
-                    {metal}
-                  </Rod>
-                  <Rod from={elbow} to={hand} radius={0.015}>
-                    {metal}
-                  </Rod>
-                  <mesh position={elbow}>
-                    <sphereGeometry args={[0.024, 12, 8]} />
-                    {metal}
-                  </mesh>
-                </group>
-              )
-            })}
-          </group>
+          <FoldingAwning
+            style={style}
+            w={w}
+            reach={full}
+            out={out}
+            canopy={<Material color={c(cloth)} material={m(cloth)} />}
+            stripe={style === 'open' ? <Material color={c('stripe')} material={m('stripe')} /> : undefined}
+            frame={<Material color={c(frame)} material={m(frame)} />}
+          />
         )
       }
       const rail = <Material color={c(head)} material={m(head)} />

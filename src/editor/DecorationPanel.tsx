@@ -5,6 +5,7 @@ import {
   DECORATION_KINDS,
   decorationKind,
   decorationVariant,
+  invertible,
   itemLevels,
   kindColors,
   paramValue,
@@ -740,6 +741,27 @@ export default function DecorationPanel({
                         )
                       })}
                     </div>
+                  )}
+                  {/* A cover that reports this piece the other way round,
+                      an awning whose motor calls it closed when it is out,
+                      is read back to front. */}
+                  {invertible(kind) && (
+                    <>
+                      <label className={cn(row, 'grid-cols-[1fr_auto]')}>
+                        Invert its state
+                        <Switch
+                          checked={!!item.invert}
+                          accent={accent}
+                          label="Invert its state"
+                          onChange={on => onUpdate(item.id, { invert: on || undefined })}
+                        />
+                      </label>
+                      <p className={note}>
+                        {item.invert
+                          ? `This ${kind.label.toLowerCase()} is open when the device says closed or off, and shut when it says open or on.`
+                          : `For a device that reports this ${kind.label.toLowerCase()} the other way round, open when it is shut.`}
+                      </p>
+                    </>
                   )}
                   <label className={cn(row, 'grid-cols-[1fr_auto]')}>
                     Only show its state

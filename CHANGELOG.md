@@ -27,6 +27,8 @@ moves that section under the new version and uses it as the release notes.
 - A sofa can be given its number of seats, a window its number of panes and a glazed door one or two leaves, where they used to follow the width alone, which stays the default as Auto.
 - Each widget in the side panel can have a name and an icon of its own, set from its page in Edit widgets, so a script called script_downstairs_lights_dining can show as Dining with a fork and knife.
 - A monitor, a PC tower, a lamp or any other piece that can stand on things has a Standing on block in its panel even on the floor, with a button for each desk, table, shelf or counter in the room that moves it on top, and an Off floor slider to raise it by hand.
+- The awning comes in two more folding arm styles that hang on the wall with nothing on the ground, an open one with a striped cloth and a scalloped valance and a semi cassette under a curved hood, and can reach out up to 3 m.
+- A blind, curtain, awning, door, window or anything else that opens with a cover can be set to invert its state, for a device that reports it closed when it is open.
 
 ### Changed
 

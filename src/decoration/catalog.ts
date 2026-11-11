@@ -140,6 +140,12 @@ export function preferredDomains(kind: DecorationKind): string[] {
   return KIND_DOMAINS[kind.id] ?? FAMILY_DOMAINS[kind.family] ?? []
 }
 
+// The pieces that open and shut with a cover, which can be set to read it
+// the other way round: an awning whose motor calls it closed when it is out.
+export function invertible(kind: DecorationKind) {
+  return kind.id === 'curtain' || preferredDomains(kind).includes('cover')
+}
+
 // Parameter shorthands. Every length is in meters.
 
 // Vertical parameters: how tall something is, or how high it sits. They are
@@ -2738,12 +2744,32 @@ export const DECORATION_KINDS: DecorationKind[] = [
     'cover',
     'Awning',
     'wall',
-    [width(2, 1, 4), height(2.3, 1.8, 2.6), p('drop', 'Extension', 1, 0.3, 2)],
+    // Every style but the pergola hangs on the wall alone, with nothing
+    // standing on the ground: its arms fold out from under the head.
+    [width(2, 1, 4), height(2.3, 1.8, 2.6), p('drop', 'Extension', 1, 0.3, 3)],
     { canopy: SCANDI.linen, cassette: SCANDI.slate },
     { canopy: 'fabric', cassette: 'metal' },
     TOGGLE_LEVEL,
     [
       { id: 'folding', label: 'Fold Reach' },
+      // An open awning: the cloth winds round a bare roller on a square bar,
+      // striped, with a scalloped valance.
+      {
+        id: 'open',
+        label: 'Stripe Roll',
+        params: { width: 3, drop: 2 },
+        colors: { canopy: SCANDI.offWhite, stripe: SCANDI.sage, frame: SCANDI.offWhite },
+        materials: { canopy: 'fabric', stripe: 'fabric', frame: 'metal' },
+      },
+      // A semi cassette: a curved hood keeps the rain off the roll, and the
+      // arms stay out in the open under it.
+      {
+        id: 'semi',
+        label: 'Hood Arm',
+        params: { width: 3.5, drop: 2.5 },
+        colors: { canopy: SCANDI.clay, frame: SCANDI.charcoal },
+        materials: { canopy: 'fabric', frame: 'metal' },
+      },
       {
         id: 'pergola',
         label: 'Pleat Pergola',

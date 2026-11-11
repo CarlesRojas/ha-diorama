@@ -169,6 +169,10 @@ export type DecorationConfig = {
   // Shows its device's state and does not act on it: a click opens the
   // device's dialog in Home Assistant instead of switching it.
   show_only?: boolean
+  // Reads its cover the other way round: shut where the device says open
+  // or on, and open where it says closed or off. Only on a piece that opens
+  // and shuts with a cover.
+  invert?: boolean
   // Stands on the floor, where it would stand at the height of its own
   // otherwise. Only read while it stands on nothing.
   floor?: boolean
