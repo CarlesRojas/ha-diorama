@@ -1,5 +1,6 @@
 import { decorationVariant, paramValue, screenSize, type DecorationKind } from '#/decoration/catalog.ts'
 import { useUnechoed } from '#/lib/echo.ts'
+import { awningHead } from '#/scene/decor/Awnings.tsx'
 import { claim, LONG_PRESS_MS } from '#/lib/longPress.ts'
 import { dropped, held } from '#/scene/drags.ts'
 import { multiTouchSince } from '#/scene/touches.ts'
@@ -50,11 +51,11 @@ export function travelOf(kind: DecorationKind, item: DecorationConfig): Travel |
     }
     case 'awning': {
       // The front profile, out along the arms at the awning's pitch.
-      const pitch = style === 'pergola' ? 0.1 : 0.25
+      const head = style === 'pergola' ? { y: -0.1, z: 0.15, pitch: 0.1 } : awningHead(style)
       const reach = p('drop')
       return {
-        shut: [0, -0.1, 0.15],
-        open: [0, -0.1 - reach * Math.sin(pitch), 0.15 + reach * Math.cos(pitch)],
+        shut: [0, head.y, head.z],
+        open: [0, head.y - reach * Math.sin(head.pitch), head.z + reach * Math.cos(head.pitch)],
         span: [p('width') / 2, 0, 0],
       }
     }

@@ -1,5 +1,5 @@
 import { betweenOf, coverAt, coversOver, roomLookedFrom, type Between } from '#/decoration/between.ts'
-import { decorationKind, type DecorationKind } from '#/decoration/catalog.ts'
+import { decorationKind, invertible, type DecorationKind } from '#/decoration/catalog.ts'
 import { canTry, initialTry, tryItemState, type TryState, type TryStates } from '#/editor/tryState.ts'
 import { elevationOf } from '#/geometry/elevation.ts'
 import { DOOR_KINDS } from '#/geometry/passages.ts'
@@ -157,11 +157,27 @@ function itemState(
   }
 }
 
+// A piece set to read its cover the other way round: open where the device
+// says closed or off, and shut where it says open or on. A device that is
+// unavailable, or a button that only plays, is left as it is.
+function inverted(state: ItemState | null): ItemState | null {
+  if (!state || state.presses !== undefined || state.text === 'unavailable' || state.text === 'unknown') return state
+  const open = state.levels.open
+  const levels = open === undefined ? state.levels : { ...state.levels, open: 1 - open }
+  return {
+    ...state,
+    on: open === undefined ? !state.on : open < 1,
+    level: state.level === undefined ? undefined : 1 - state.level,
+    levels,
+  }
+}
+
 // What a piece with a device is tried from in the editor: the device as it
 // is, put in the editor's own terms, so trying it starts where the home is.
-export function deviceTry(hass: HomeAssistant, device: DeviceConfig, kind: DecorationKind): TryState {
+export function deviceTry(hass: HomeAssistant, device: DeviceConfig, kind: DecorationKind, invert = false): TryState {
   const start = initialTry(kind)
-  const state = itemState(hass, device, new Map())
+  const read = itemState(hass, device, new Map())
+  const state = invert && invertible(kind) ? inverted(read) : read
   if (!state) return start
   const v = signalValues(hass, device.entity_id)
   const hex = (n: number) => Math.round(n).toString(16).padStart(2, '0')
@@ -295,11 +311,13 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
     // device, and one without shows its first look.
     const tried = onTry && kind && canTry(kind)
     const tryState = tried ? tries?.[item.id] : undefined
-    const real = device && hass ? itemState(hass, device, guesses, presses) : null
+    const read = device && hass ? itemState(hass, device, guesses, presses) : null
+    const flip = !!item.invert && !!kind && invertible(kind)
+    const real = flip ? inverted(read) : read
     // What the device says that trying has no control for, like a reading,
     // is kept.
     const state = kind && tryState ? { ...real, ...tryItemState(kind, tryState) } : real
-    return { device, kind, tried, state }
+    return { device, kind, tried, state, flip }
   }
   const states = new Map(decorations.map(item => [item.id, stateOf(item)]))
   // How far each piece is carried up by the standing desks it stands on,
@@ -319,7 +337,7 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
   return (
     <>
       {decorations.map(item => {
-        const { device, tried, state } = states.get(item.id) ?? stateOf(item)
+        const { device, tried, state, flip } = states.get(item.id) ?? stateOf(item)
         // A piece in a wall between two rooms sends its first click to the
         // room it is looked at from, the one the camera looks out of.
         const between = betweenOf(item, rooms)
@@ -394,7 +412,9 @@ export default function Devices({ hass, config, onPick, tries, onTry, roomFirst,
                     .callService(
                       'cover',
                       'set_cover_position',
-                      { entity_id: device!.entity_id, position: Math.round(level * 100) },
+                      // An inverted piece is dragged out to where the
+                      // cover reads shut.
+                      { entity_id: device!.entity_id, position: Math.round((flip ? 1 - level : level) * 100) },
                       undefined,
                       false,
                     )
