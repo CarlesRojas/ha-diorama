@@ -1,10 +1,12 @@
 import {
   colorValue,
   decorationVariant,
-  leafCount,
+  doorLeaves,
   materialValue,
   paramValue,
   screenSize,
+  windowFrame,
+  windowPanes,
   type DecorationKind,
 } from '#/decoration/catalog.ts'
 import { Bar, Draft, Glass, Halo, Led, Material, SEG, Slab, Steam, Waves } from '#/scene/decor/parts.tsx'
@@ -878,21 +880,22 @@ export default function DeviceModel({ kind, item, state, room, all }: Props) {
     }
     case 'window': {
       // A frame with as many casements as the width takes, each between half
-      // a meter and a meter wide. They swing inward when the cover opens.
-      // Left alone, a run of them opens from the middle the way a pair of
-      // French casements does. Hinge right swings every one of them from its
-      // right edge instead, which is the other way a run of casements is
-      // actually hung. Mirroring the run was the old meaning, and on the
-      // pair most windows are it changed nothing at all.
+      // a meter and a meter wide, or as many as are chosen. They swing
+      // inward when the cover opens. Left alone, a run of them opens from
+      // the middle the way a pair of French casements does. Hinge right
+      // swings every one of them from its right edge instead, which is the
+      // other way a run of casements is actually hung. Mirroring the run was
+      // the old meaning, and on the pair most windows are it changed nothing
+      // at all.
       const w = p('width')
       const h = p('height')
       const hingeRight = p('flip') > 0.5
-      // Steel frames are slimmer than timber or uPVC ones.
-      const f = style === 'steel' ? 0.035 : 0.05
+      const f = windowFrame(style)
       const d = 0.05
       const frame = <Material color={c('frame')} material={m('frame')} />
       const inner = { w: w - f * 2, h: h - f * 2 }
-      const leaves = leafCount(inner.w)
+      // As many as the width takes, unless a number of panes is chosen.
+      const leaves = windowPanes(w, style, p('panes')).count
       const leafW = inner.w / leaves
       // Glazing bars across a leaf, laid on its glass. They move with the
       // leaf, so they are drawn inside whatever group swings or slides it.
@@ -1007,9 +1010,10 @@ export default function DeviceModel({ kind, item, state, room, all }: Props) {
       const hinge = p('flip') > 0.5 ? -1 : 1
       // A bare frame has no leaf, for an open doorway between two rooms.
       const frameOnly = style === 'frame'
-      // A terrace pair always opens both its leaves.
+      // A terrace pair always opens both its leaves, and a glazed door can
+      // be given one or two whatever its width.
       const terrace = style === 'terrace'
-      const pair = w > 1.2 || terrace
+      const pair = doorLeaves(w, style, p('leaves')).count === 2
       const lw = pair ? w / 2 : w
       const leaf = 0.042
       const jamb = 0.05

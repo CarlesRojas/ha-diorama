@@ -1,5 +1,6 @@
 import {
   bookshelfShelves,
+  countValue,
   colorValue,
   decorationVariant,
   materialValue,
@@ -66,6 +67,7 @@ export default function FurnitureModel({ kind, item, state }: Props) {
           reach={p('reach')}
           chaise={p('chaise') > 0.5}
           flip={p('flip') > 0.5}
+          seats={countValue(kind, item.params, item.variant).count}
           M={M}
         />
       )
