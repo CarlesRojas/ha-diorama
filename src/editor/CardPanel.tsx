@@ -4,15 +4,25 @@ import { setDevSettings, useDevSettings } from '#/lib/devSettings.ts'
 import { setPreviewRoom } from '#/lib/previewRoom.ts'
 import { screenName, thisScreen, withScreen } from '#/lib/screen.ts'
 import { cn } from '#/lib/utils.ts'
-import { group } from '#/editor/look.ts'
+import { field, group, groupTitle, note } from '#/editor/look.ts'
 import ControlsGuide from '#/editor/ControlsGuide.tsx'
 import { ResetButton, Slider, Switch } from '#/editor/panel.tsx'
 import { SUN_DIRECTION_DEG } from '#/constants.ts'
 import { EDITOR_TINT_COLOR } from '#/theme.ts'
 import { entityName } from '#/devices/catalog.ts'
 import type { BackgroundConfig, CardConfig, HomeAssistant, HomeConfig, RoomConfig, TileChoice, TileChoices } from '#/types.ts'
-import { autoTiles, choicesOf, keyEntity, panelRooms, panelWidgets, type AutoCard, type PanelWidget } from '#/tiles/auto.ts'
-import { choiceFor, setupKey, TilePicker } from '#/editor/TilePicker.tsx'
+import {
+  autoTiles,
+  choicesOf,
+  keyEntity,
+  panelRooms,
+  panelWidgets,
+  widgetKey,
+  type AutoCard,
+  type PanelWidget,
+} from '#/tiles/auto.ts'
+import { choiceFor, labelled, labelsOf, setupKey, TilePicker, type Labels } from '#/editor/TilePicker.tsx'
+import { IconPicker } from '#/editor/IconPicker.tsx'
 import { WidgetGrid } from '#/editor/WidgetGrid.tsx'
 import { Icon } from '#/tiles/Icon.tsx'
 import { defaultIcon } from '#/tiles/icons.ts'
@@ -64,13 +74,13 @@ export default function CardPanel({ hass, config, onChange, opening, onOpen }: P
   const [choosing, setChoosing] = useState<Choosing | null>(null)
   const root = useRef<HTMLDivElement>(null)
   const back = useRef<string | null>(null)
-  const choose = (room: string | null, id: string) => {
+  const choose = (room: string | null, id: string, index: number) => {
     back.current = null
     setPreviewRoom(room)
-    setChoosing({ room, id })
+    setChoosing({ room, id, index })
   }
   const close = () => {
-    if (choosing) back.current = `[data-choose="${CSS.escape(choosing.id)}"]`
+    if (choosing) back.current = `[data-choose="${CSS.escape(widgetKey(choosing.id, choosing.index))}"]`
     setChoosing(null)
   }
   const openWidgets = (on: boolean) => {
@@ -222,6 +232,11 @@ export default function CardPanel({ hass, config, onChange, opening, onOpen }: P
   if (picking) {
     const { auto, tiles, room } = picking
     const id = choosing!.id
+    const picked = choicesOf(tiles, id)
+    // The widget whose pen opened the page, or the last one left once
+    // others are taken away.
+    const editing = Math.min(choosing!.index, picked.length - 1)
+    const labels = labelsOf(picked[editing])
     // A widget taken away leaves the order naming the entity no more times
     // than it has widgets.
     const save = (picked: (TileChoice | undefined)[]) => {
@@ -229,16 +244,46 @@ export default function CardPanel({ hass, config, onChange, opening, onOpen }: P
       if (room) setRoom(room.id, { tiles: next, order: room.order && trimmed(room.order, id, picked.length) })
       else setHome({ tiles: next, entities: trimmed(homeEntities, id, picked.length) })
     }
+    const setLabels = (changes: Labels) => {
+      const next = [...picked]
+      next[editing] = labelled(picked[editing] ?? spelled(auto), { ...labels, ...changes })
+      save(next)
+    }
+    const own = entityName(hass, id)
     return (
       <Page
         root={root}
         light={light}
-        title={entityName(hass, id)}
+        title={labels.name ?? own}
         subtitle={`Its widgets in the side panel, ${room ? roomName(hass, room) : home.name || 'Home'}`}
         onBack={close}
         onDone={close}
       >
-        <TilePicker hass={hass} auto={auto} picked={choicesOf(tiles, id)} onChange={save} />
+        <div className={group}>
+          <p className={groupTitle}>{picked.length > 1 ? `Widget ${editing + 1} of ${picked.length}` : 'Widget'}</p>
+          <label className="grid grid-cols-[52px_minmax(0,1fr)] items-center gap-2 text-[13px]">
+            <span>Name</span>
+            <input
+              type="text"
+              value={labels.name ?? ''}
+              placeholder={own}
+              aria-label="Name"
+              onChange={event => setLabels({ name: event.target.value })}
+              className={field}
+            />
+          </label>
+          <div className="grid grid-cols-[52px_minmax(0,1fr)] items-start gap-2 text-[13px]">
+            <span className="leading-8">Icon</span>
+            <IconPicker
+              value={labels.icon}
+              fallback={fallbackIcon(hass, auto)}
+              onChange={icon => setLabels({ icon })}
+            />
+          </div>
+          <p className={note}>Shown on this widget in place of the entity's own. Left empty, it keeps them.</p>
+        </div>
+        <p className={cn(groupTitle, 'pt-2')}>Card</p>
+        <TilePicker hass={hass} auto={auto} picked={picked} editing={editing} onChange={save} />
       </Page>
     )
   }
@@ -271,7 +316,7 @@ export default function CardPanel({ hass, config, onChange, opening, onOpen }: P
                   setHome({ entities: order, tiles })
                 }}
                 onSize={(key, choice) => setHome({ tiles: resized(homeWidgets, home.tiles, key, choice) })}
-                onEdit={entity => choose(null, entity)}
+                onEdit={(entity, index) => choose(null, entity, index)}
               />
             )}
             {hass && (
@@ -293,7 +338,7 @@ export default function CardPanel({ hass, config, onChange, opening, onOpen }: P
               onRename={name => renameRoom(room.id, name)}
               onUp={i > 0 ? () => moveRoom(room.id, -1) : undefined}
               onDown={i < ordered.length - 1 ? () => moveRoom(room.id, 1) : undefined}
-              onChoose={id => choose(room.id, id)}
+              onChoose={(id, index) => choose(room.id, id, index)}
             />
           ))}
         </div>
@@ -788,7 +833,7 @@ function RoomEntities({
   // Moves the room a place up or down the panel, none at either end.
   onUp?: () => void
   onDown?: () => void
-  onChoose: (id: string) => void
+  onChoose: (id: string, index: number) => void
 }) {
   const extra = room.entities ?? []
   const hidden = room.hidden ?? []
@@ -908,6 +953,15 @@ function HeadingInput({
   )
 }
 
+// The icon a widget shows with none of its own, as a tile works it out.
+function fallbackIcon(hass: HomeAssistant, auto: AutoCard) {
+  const id = String(auto.entity)
+  const state = hass.states[id]
+  if (typeof state?.attributes.icon === 'string') return state.attributes.icon
+  if (typeof auto.piece_icon === 'string') return auto.piece_icon
+  return defaultIcon(id, state?.attributes.device_class, state?.state)
+}
+
 // The icon Home Assistant gives an entity.
 function entityIcon(hass: HomeAssistant, id: string) {
   const state = hass.states[id]
@@ -931,7 +985,12 @@ function without(tiles: TileChoices | undefined, id: string) {
 }
 
 // A widget of the panel as the grid takes it.
-const gridWidget = ({ key, entity, auto, choice }: PanelWidget) => ({ id: key, entity, auto, choice })
+const gridWidget = ({ key, entity, index, auto, choice }: PanelWidget) => ({ id: key, entity, index, auto, choice })
+
+// The card the panel picks for an entity, written out as a choice.
+function spelled({ type, size }: AutoCard): TileChoice {
+  return size ? { type, size } : { type }
+}
 
 // The chosen cards with an entity's set to these, one for each of its
 // widgets. One that is the card the panel picks anyway is left out, and
@@ -948,9 +1007,7 @@ function withChoices(
     const choice = picked[0] && choiceFor(autoKey, picked[0])
     return choice ? { ...rest, [id]: choice } : rest
   }
-  const { type, size } = auto
-  const spelled: TileChoice = size ? { type, size } : { type }
-  return { ...rest, [id]: picked.map(choice => choice ?? spelled) }
+  return { ...rest, [id]: picked.map(choice => choice ?? spelled(auto)) }
 }
 
 // The chosen cards with one widget's set to this.
@@ -981,7 +1038,9 @@ function trimmed(order: string[], id: string, most: number) {
   return order.filter(other => other !== id || ++seen <= Math.max(1, most))
 }
 
-type Choosing = { room: string | null; id: string }
+// The entity whose cards are being picked, and which of its widgets opened
+// the page.
+type Choosing = { room: string | null; id: string; index: number }
 
 // What the page for picking a tile's card needs: the tile the panel would
 // make, the cards already picked beside it, and the room it is in, or none

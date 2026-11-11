@@ -18,8 +18,11 @@ export type ActionConfig = {
 
 export type TileEnv = { hass: HomeAssistant; host: HTMLElement; entityId?: string }
 
+// The name a tile shows: its own, else its entity's friendly name, and its
+// entity id only when it has neither. An empty one counts as none.
 export function entityName(config: { name?: string; entity?: string }, entity: EntityState | undefined) {
-  return config.name ?? (entity?.attributes.friendly_name as string | undefined) ?? config.entity ?? ''
+  const friendly = entity?.attributes.friendly_name
+  return config.name || (typeof friendly === 'string' && friendly) || config.entity || ''
 }
 
 export function moreInfo(host: HTMLElement, entityId: string | undefined) {

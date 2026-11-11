@@ -226,6 +226,19 @@ rooms:
         feature: color-favorites
 ```
 
+At the top of the same page, **Name** and **Icon** set what that widget shows in place of its entity's own, so a script called `script_downstairs_lights_dining` can read Dining, with a fork and knife. The icon opens the bundled `ph:` icons, which a search narrows down by name, and takes any icon Home Assistant knows written in full, like `mdi:silverware`. **Default** goes back to the entity's own icon, and an empty name to its friendly name. They belong to the widget whose pen opened the page, and stay with it when another card is picked for it. In YAML they are the `name` and `icon` of the widget's card in `tiles`.
+
+```yaml
+home:
+  entities:
+    - script.script_downstairs_lights_dining
+  tiles:
+    script.script_downstairs_lights_dining:
+      type: custom:dio-button
+      name: Dining
+      icon: ph:fork-knife
+```
+
 With `confirm: true`, a toggle or a button acts only on a second tap, as a lock opens the door, with no green or red. On a tile that is off, the first tap lights half of it, which runs back to nothing over four seconds, and a second tap before then lights it all and turns it on or runs it. On a toggle that is on, the first tap cuts the lit part back to half, which grows back to all of it over four seconds, and a second tap turns it off. A toggle set to two taps has no slider or other control, only on and off. A media player that can be turned on and off, like a TV, can be a toggle too, but only set to two taps, so it is never turned off by mistake, and it is on whatever it is doing. In the card picker it is Diorama Toggle - Double Tap, or Diorama Button - Double Tap, and in the list of every card Diorama Double Tap Toggle or Diorama Double Tap Button, as in the widget picker.
 
 A scene or a script runs on a tap. An automation is a toggle that turns the automation itself on or off, so to run one from a tile, put its actions in a script. A light group made with Home Assistant's Group helper is a light, so its tile has brightness and color. While it is on, its toggle tile says how many of its lights are on, like 3 on, and its dial says it under the brightness. For a plain on and off over many lights, make a template switch instead, like the demo's All lights: on while any light is, and a tap turns them all off, or all on when every one is off. A scene in Home Assistant has no on or off, so for one that shows whether it is in place and undoes itself, make a template switch: its state says when the scene is on, `turn_on` sets it up and `turn_off` undoes what should be undone. The demo's Projector scene is on while the projector screen is down, turns off the bedroom lights and brings the screen down when turned on, and only rolls the screen up when turned off.
