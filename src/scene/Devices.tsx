@@ -403,29 +403,31 @@ export default function Devices({
           return cover && boundTo.get(cover.id)
         }
         const onClick: PressAction | undefined =
-          !device && !onPick && onStairs && stairs?.has(item.id)
-            ? () => onStairs(item.id)
-            : device || onPick || tried
-              ? () => {
-                  onPick?.(item.id)
-                  // The editor only tries a device, and leaves the real one be.
-                  if (onTry) {
-                    if (tried && !(device && roomFirst?.(roomOf()))) onTry(item.id)
-                  } else if (device && !roomFirst?.(roomOf())) {
-                    // A piece set to only show its device opens its dialog
-                    // instead of switching it.
-                    if (item.show_only) openMoreInfo(device.entity_id)
-                    else act(device.entity_id)
-                  }
+          device || onPick || tried
+            ? () => {
+                onPick?.(item.id)
+                // The editor only tries a device, and leaves the real one be.
+                if (onTry) {
+                  if (tried && !(device && roomFirst?.(roomOf()))) onTry(item.id)
+                } else if (device && !roomFirst?.(roomOf())) {
+                  // A piece set to only show its device opens its dialog
+                  // instead of switching it.
+                  if (item.show_only) openMoreInfo(device.entity_id)
+                  else act(device.entity_id)
                 }
-              : covers.length > 0 && !leads
-                ? at => {
-                    const over = covering(at)
-                    if (over && !roomFirst?.(roomOf())) act(over.entity_id)
-                  }
-                : between && onRoom
-                  ? () => onRoom(roomOf() === between.front ? between.back : between.front, between.rooms)
-                  : undefined
+              }
+            : covers.length > 0 && !leads
+              ? at => {
+                  const over = covering(at)
+                  if (over && !roomFirst?.(roomOf())) act(over.entity_id)
+                }
+              : between && onRoom
+                ? () => onRoom(roomOf() === between.front ? between.back : between.front, between.rooms)
+                : undefined
+        // A flight of stairs that leads to another floor goes there, the way
+        // a door leads into the next room.
+        const climb: PressAction | undefined =
+          !device && !onPick && onStairs && stairs?.has(item.id) ? () => onStairs(item.id) : undefined
         // Home Assistant's dialog would let the editor change the real
         // device, so the editor has none.
         const onOpen: PressAction | undefined = onTry
@@ -467,7 +469,7 @@ export default function Devices({
                 if (cover) grabs.get(cover.id)?.(down)
               }
             : undefined
-        actions.set(item.id, { click: onClick, open: onOpen, drag, pass })
+        actions.set(item.id, { click: climb ?? onClick, open: onOpen, drag, pass })
         const h = handler(item.id)
         return (
           <DecorationModel
@@ -479,7 +481,7 @@ export default function Devices({
             floor={floorUnder(item.room, between) - (item.below ?? 0)}
             state={state}
             raise={raise(item)}
-            onClick={onClick && h.click}
+            onClick={(climb ?? onClick) && h.click}
             onOpen={onOpen && h.open}
             exact={!device && !onPick && !tried}
             onDrag={drag && h.drag}
