@@ -234,7 +234,7 @@ export function Select({
                   {(o.device || o.area) && (
                     <div className="flex items-center gap-2">
                       {o.area && <span className="text-label-2 text-xs">{o.area}</span>}
-                      {(o.device && o.area) && <span className="text-label-2 text-xs">•</span>}
+                      {o.device && o.area && <span className="text-label-2 text-xs">•</span>}
                       {o.device && <span className="text-label-2 text-xs">{o.device}</span>}
                     </div>
                   )}

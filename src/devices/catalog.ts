@@ -117,7 +117,7 @@ export function placeableEntities(hass: HomeAssistant): EntityInfo[] {
       const deviceClass = hass.states[entry.entity_id]?.attributes.device_class
       if (typeof deviceClass === 'string' && NOISY_SENSORS.has(deviceClass)) continue
     }
-    const areaId = entityArea(hass, entry.entity_id);
+    const areaId = entityArea(hass, entry.entity_id)
     out.push({
       entity_id: entry.entity_id,
       name: entityName(hass, entry.entity_id),
