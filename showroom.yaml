@@ -398,8 +398,8 @@ rooms:
     name: "Wall mirror"
     points:
       - [34.9, 0]
-      - [37.7, 0]
-      - [37.7, 1.7]
+      - [38.7, 0]
+      - [38.7, 1.7]
       - [34.9, 1.7]
   - id: wall_clock
     name: "Wall clock"
@@ -1598,6 +1598,12 @@ decorations:
     position: [36.9, 0]
     rotation: 180
     variant: square
+  - id: wall_mirror_rect
+    kind: wall_mirror
+    room: wall_mirror
+    position: [37.95, 0]
+    rotation: 180
+    variant: rect
   - id: wall_clock_oak
     kind: wall_clock
     room: wall_clock

@@ -25,6 +25,7 @@ moves that section under the new version and uses it as the release notes.
 - A piece can be set to only show its device's state, so a click on it opens the device's dialog instead of switching it.
 - A curtain can be a single panel that opens to the left or to the right.
 - A door can be only its frame, with no leaf, for an open doorway between two rooms.
+- The wall mirror comes in a rectangular style, with its own width and height.
 - A sofa can be given its number of seats, a window its number of panes and a glazed door one or two leaves, where they used to follow the width alone, which stays the default as Auto.
 - Each widget in the side panel can have a name and an icon of its own, set from its page in Edit widgets, so a script called script_downstairs_lights_dining can show as Dining with a fork and knife.
 - A monitor, a PC tower, a lamp or any other piece that can stand on things has a Standing on block in its panel even on the floor, with a button for each desk, table, shelf or counter in the room that moves it on top, and an Off floor slider to raise it by hand.

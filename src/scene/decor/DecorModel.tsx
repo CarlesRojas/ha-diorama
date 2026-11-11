@@ -172,9 +172,10 @@ export default function DecorModel({ kind, item, state }: Props) {
       return <WallPlant style={style} width={p('width')} trail={p('trail')} wilt={thirst} paint={paint} />
     case 'wall_mirror': {
       const s = p('size')
+      const tall = style === 'rect' ? p('tall') : s
       return (
-        <group position={[0, Math.max(0, s / 2 + 0.02 - p('height')), 0]}>
-          <Mirror style={style} s={s} paint={paint} />
+        <group position={[0, Math.max(0, tall / 2 + 0.02 - p('height')), 0]}>
+          <Mirror style={style} s={s} tall={tall} paint={paint} />
         </group>
       )
     }
