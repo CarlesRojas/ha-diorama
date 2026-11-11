@@ -31,6 +31,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  MUTED_DANGER_FILL,
+  MUTED_DANGER_TEXT,
 } from '#/components/ui/alert-dialog.tsx'
 import {
   faCamera,
@@ -1517,7 +1519,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
             floor's name is typed in. */}
           <AlertDialog danger open={doomed !== undefined} onOpenChange={open => !open && setFloorToDelete(null)}>
             <AlertDialogHeader>
-              <FontAwesomeIcon icon={faTriangleExclamation} className="text-danger mx-auto mb-1 size-7" />
+              <FontAwesomeIcon icon={faTriangleExclamation} className={cn(MUTED_DANGER_TEXT, 'mx-auto mb-1 size-7')} />
               <AlertDialogTitle danger>Delete {doomed?.name}?</AlertDialogTitle>
               <AlertDialogDescription>
                 Its {count(doomedRooms.length, 'room')} and the {count(doomedPieces, 'piece')} in them are deleted with
@@ -1541,6 +1543,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
               <AlertDialogCancel onClick={() => setFloorToDelete(null)}>Keep it</AlertDialogCancel>
               <AlertDialogAction
                 variant="destructive"
+                className={MUTED_DANGER_FILL}
                 disabled={!doomed || floorTyped.trim() !== doomed.name}
                 onClick={() => doomed && deleteFloor(doomed.id)}
               >
