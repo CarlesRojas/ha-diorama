@@ -27,6 +27,7 @@ moves that section under the new version and uses it as the release notes.
 
 ### Changed
 
+- The device picker shows each entity's area and device under its name, and finds it by either.
 - Diorama needs Home Assistant 2024.6 or newer, and HACS says so before installing it.
 - Ceiling lights glow on top too, so from above you can see they are on and in what color.
 

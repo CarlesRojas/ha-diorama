@@ -529,7 +529,10 @@ export default function DecorationPanel({
                   ...fits.map(e => ({
                     value: e.entity_id,
                     label: e.name,
-                    keywords: e.entity_id,
+                    // Found by its area and device too, as well as its id.
+                    keywords: [e.entity_id, e.area_name, e.device_name].filter(Boolean).join(' '),
+                    area: e.area_name ?? undefined,
+                    device: e.device_name ?? undefined,
                     badge: hass ? (
                       <Signals signals={deviceSignals(hass, e.entity_id)} size="sm" accent={accent} />
                     ) : undefined,
