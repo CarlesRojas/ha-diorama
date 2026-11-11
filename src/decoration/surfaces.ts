@@ -136,3 +136,90 @@ export function supportUnder(point: Point, item: DecorationConfig, all: Decorati
   }
   return best
 }
+
+// Every top in the room a piece could be moved onto from its panel, never
+// itself and never something already standing on it.
+export function topsFor(item: DecorationConfig, all: DecorationConfig[]): DecorationConfig[] {
+  const kind = decorationKind(item.kind)
+  if (!kind || kind.mount !== 'floor' || !canRide(kind)) return []
+  const own = new Set([item.id, ...ridersOf(item.id, all).map(r => r.id)])
+  return all.filter(other => {
+    if (own.has(other.id) || other.room !== item.room) return false
+    const otherKind = decorationKind(other.kind)
+    return !!otherKind && isSupport(otherKind)
+  })
+}
+
+// Half the width and depth a piece takes up, turned by `turn` degrees.
+function halfExtents(item: DecorationConfig, turn: number): [number, number] {
+  const kind = decorationKind(item.kind)
+  if (!kind) return [0, 0]
+  const [w, d] = footprint(kind, item.params, item.variant)
+  const a = (turn * Math.PI) / 180
+  const c = Math.abs(Math.cos(a))
+  const s = Math.abs(Math.sin(a))
+  return [(c * w + s * d) / 2, (s * w + c * d) / 2]
+}
+
+// Where a piece goes when it is moved onto a top from its panel. One already
+// over that top stays where it is. Otherwise it turns the way the top faces
+// and takes the first free spot from towards the back of the top, so a
+// monitor ends up behind where the keyboard goes and a second piece goes
+// beside the first rather than into it.
+export function spotOn(
+  item: DecorationConfig,
+  support: DecorationConfig,
+  all: DecorationConfig[],
+): { position: Point; rotation: number } {
+  const supportKind = decorationKind(support.kind)
+  if (!supportKind || onSurface(item.position, support)) {
+    return { position: item.position, rotation: item.rotation ?? 0 }
+  }
+  const turn = support.rotation ?? 0
+  const [w, d] = surfaceRect(supportKind, support.params, support.variant)
+  // A wall shelf's top is out from the wall line, as in onSurface.
+  const out = supportKind.mount === 'wall' ? footprint(supportKind, support.params, support.variant)[1] / 2 : 0
+  const a = (turn * Math.PI) / 180
+  const toWorld = (u: number, v: number): Point => {
+    const ly = v - out
+    return [
+      Math.round((support.position[0] + u * Math.cos(a) - ly * Math.sin(a)) * 100) / 100,
+      Math.round((support.position[1] + u * Math.sin(a) + ly * Math.cos(a)) * 100) / 100,
+    ]
+  }
+  const toLocal = (p: Point): [number, number] => {
+    const dx = p[0] - support.position[0]
+    const dy = p[1] - support.position[1]
+    return [dx * Math.cos(-a) - dy * Math.sin(-a), dx * Math.sin(-a) + dy * Math.cos(-a) + out]
+  }
+  // What else stands on the top, as boxes in the top's own frame.
+  const own = new Set([item.id, ...ridersOf(item.id, all).map(r => r.id)])
+  const taken = all
+    .filter(other => other.on === support.id && !own.has(other.id))
+    .map(other => {
+      const [u, v] = toLocal(other.position)
+      const [hu, hv] = halfExtents(other, (other.rotation ?? 0) - turn)
+      return { u, v, hu, hv }
+    })
+  const [iu, iv] = halfExtents(item, 0)
+  // The back of a top is up its local y, the way a piece facing out from it
+  // has behind it. Halfway there leaves room in front.
+  const goal: [number, number] = [0, Math.max(0, d / 2 - iv) / 2]
+  const gap = 0.02
+  const clear = ([u, v]: [number, number]) =>
+    taken.every(t => Math.abs(u - t.u) >= iu + t.hu + gap || Math.abs(v - t.v) >= iv + t.hv + gap)
+  // Spots on a 5 cm grid, nearest the goal first: all of it on the top, or
+  // failing that only its middle, as when it is dragged there.
+  const spots = (reachU: number, reachV: number) => {
+    const out: [number, number][] = []
+    const nu = Math.floor(reachU / 0.05 + 1e-9)
+    const nv = Math.floor(reachV / 0.05 + 1e-9)
+    for (let i = -nu; i <= nu; i++) {
+      for (let j = -nv; j <= nv; j++) out.push([i * 0.05, j * 0.05])
+    }
+    return out.sort((p, q) => Math.hypot(p[0] - goal[0], p[1] - goal[1]) - Math.hypot(q[0] - goal[0], q[1] - goal[1]))
+  }
+  const free = spots(Math.max(0, w / 2 - iu), Math.max(0, d / 2 - iv)).find(clear) ?? spots(w / 2, d / 2).find(clear)
+  const [u, v] = free ?? goal
+  return { position: toWorld(u, v), rotation: turn }
+}

@@ -44,6 +44,9 @@ type Props = {
   devices: DeviceConfig[]
   decorations: DecorationConfig[]
   selectedDecoration: string | null
+  // A top named in the selected piece's panel, marked as one is while a
+  // piece is dragged over it.
+  pointedTop?: string | null
   onDecorations: (decorations: DecorationConfig[], done: boolean) => void
   onSelectDecoration: (id: string | null) => void
   onRemoveDecoration: (id: string) => void
@@ -105,6 +108,7 @@ export default function Canvas({
   devices,
   decorations,
   selectedDecoration,
+  pointedTop,
   onDecorations,
   onSelectDecoration,
   onRemoveDecoration,
@@ -1155,7 +1159,7 @@ export default function Canvas({
               draggingDecoration === item.id &&
               !(pointStrictlyInside(item.position, room.points) || pointOnBoundary(item.position, room.points))
             const isSelected = selectedDecoration === item.id
-            const target = hoverSupport === item.id
+            const target = hoverSupport === item.id || pointedTop === item.id
             // What is selected turns blue, so it reads apart from the rest.
             // An item a device stands behind wears amber, so what is wired up
             // reads at a glance. The rest are in the text's own color.

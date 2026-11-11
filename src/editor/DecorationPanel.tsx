@@ -13,7 +13,7 @@ import {
   withoutStyleDefaults,
   type DecorationKind,
 } from '#/decoration/catalog.ts'
-import { levelsAt } from '#/decoration/surfaces.ts'
+import { levelsAt, topsFor } from '#/decoration/surfaces.ts'
 import { isModelKind, MODEL_FAMILY, modelIdOf, modelKinds } from '#/decoration/models.ts'
 import { heavyNote, importFiles, importLink, sizeNote } from '#/editor/importModel.ts'
 import { placeableEntities } from '#/devices/catalog.ts'
@@ -70,6 +70,10 @@ type Props = {
   onBind: (id: string, entityId: string | null) => void
   onDeviceLevels: (entityId: string, levels: Record<string, string>) => void
   onStandOn: (id: string, level: { on: string | null; floor: boolean }) => void
+  // Moves a piece onto a top in its room, wherever it is now.
+  onPutOn: (id: string, supportId: string) => void
+  // The top whose name the pointer is over, or null once it leaves.
+  onPointTop: (id: string | null) => void
   onSelect: (id: string | null) => void
   // States tried on pieces with no device, only while editing.
   tries: TryStates
@@ -148,6 +152,8 @@ export default function DecorationPanel({
   onBind,
   onDeviceLevels,
   onStandOn,
+  onPutOn,
+  onPointTop,
   onSelect,
   tries,
   tryStart,
@@ -235,11 +241,26 @@ export default function DecorationPanel({
     // and the tops under it.
     const levels = levelsAt(item, decorations)
     const levelAt = levels.findIndex(l => l.current)
+    // Every top in the room it could go on, each named after its kind and
+    // numbered when the room has more than one of that kind.
+    const tops = topsFor(item, decorations)
+    const topName = (top: DecorationConfig) => {
+      const label = decorationKind(top.kind)?.label ?? top.kind
+      const same = tops.filter(t => t.kind === top.kind)
+      return same.length > 1 ? `${label} ${same.indexOf(top) + 1}` : label
+    }
     const levelName = (l: (typeof levels)[number]) => {
       const under = l.on ? decorations.find(d => d.id === l.on) : undefined
-      if (under) return decorationKind(under.kind)?.label ?? under.kind
+      if (under) return tops.includes(under) ? topName(under) : (decorationKind(under.kind)?.label ?? under.kind)
       return l.floor ? 'The floor' : 'On its own'
     }
+    // Standing on nothing, its height is its own, set by hand. A piece put
+    // on the floor stands at none.
+    const riding = levels.length > 0
+    const standing = riding && levelAt >= 0 ? levels[levelAt] : undefined
+    const free = riding && !standing?.on
+    const ownHeight = item.floor ? 0 : paramValue(kind, item.params, 'lift', item.variant)
+    const liftParam = kind.params.find(x => x.id === 'lift')
     const itemRoom = rooms.find(r => r.id === item.room)
     // A piece on a wall turns to face into the room, as it does when it is
     // put there. Any other piece faces straight ahead.
@@ -482,17 +503,17 @@ export default function DecorationPanel({
             )
           })()}
 
-        {/* Up and down through the heights there are where it stands. With
-            only one, there is nothing to step through. */}
-        {levels.length > 1 && levelAt >= 0 && (
+        {/* How high it stands: on the floor, on a top, or at a height of
+            its own. Every piece that can stand on others has it, so a piece
+            on bare floor still says how to get it up onto something. */}
+        {standing && (
           <div className={group}>
             <p className={groupTitle}>Standing on</p>
+            {/* Up and down through the heights there are where it stands. */}
             <div className="flex items-center gap-2 text-[13px]">
               <span className="min-w-0 flex-1 truncate">
-                {levelName(levels[levelAt])}
-                <span className="text-label-2 ml-2 text-xs tabular-nums">
-                  {Math.round(levels[levelAt].height * 100)} cm
-                </span>
+                {levelName(standing)}
+                <span className="text-label-2 ml-2 text-xs tabular-nums">{Math.round(standing.height * 100)} cm</span>
               </span>
               {(
                 [
@@ -513,6 +534,67 @@ export default function DecorationPanel({
                 </button>
               ))}
             </div>
+            {/* Straight onto any top in the room, wherever it is now. The
+                one it stands on reads as picked. */}
+            {tops.length > 0 && (
+              <div className={cn(row, 'grid-cols-[96px_1fr] items-start')}>
+                <span className="pt-1">Move onto</span>
+                <div className="flex flex-wrap gap-1.5" onPointerLeave={() => onPointTop(null)}>
+                  {tops.map(top => {
+                    const on = standing.on === top.id
+                    return (
+                      <button
+                        key={top.id}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => onPutOn(item.id, top.id)}
+                        onPointerEnter={() => onPointTop(top.id)}
+                        onFocus={() => onPointTop(top.id)}
+                        onBlur={() => onPointTop(null)}
+                        className={cn(
+                          'rounded-full px-2.5 py-1 text-xs font-medium transition-colors',
+                          on
+                            ? 'text-white'
+                            : 'bg-fill-strong hover:bg-fill-stronger text-label-2 hover:text-(--primary-text-color)',
+                        )}
+                        style={on ? { backgroundColor: accent } : undefined}
+                      >
+                        {topName(top)}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+            {/* By hand, for whatever it stands on that is not a top of its
+                own: a model of your own, the inside of a cabinet. */}
+            {free && liftParam && (
+              <label className={cn(row, 'grid-cols-[96px_1fr_56px_24px]')}>
+                Off floor
+                <Slider
+                  min={liftParam.min}
+                  max={liftParam.max}
+                  step={liftParam.step}
+                  value={ownHeight}
+                  onChange={e =>
+                    onUpdate(item.id, { floor: undefined, params: { ...item.params, lift: Number(e.target.value) } })
+                  }
+                />
+                <span className="text-label-2 text-right text-xs tabular-nums">{ownHeight.toFixed(2)} m</span>
+                <ResetButton
+                  label="Off floor"
+                  changed={item.floor === true || item.params?.lift !== undefined}
+                  onReset={() => onUpdate(item.id, { floor: undefined, params: without(item.params ?? {}, 'lift') })}
+                />
+              </label>
+            )}
+            {free && (
+              <p className={note}>
+                {tops.length > 0
+                  ? 'Drag it onto a desk, table, shelf or counter on the plan, or pick one above, to stand it on top.'
+                  : 'Drag it onto a desk, table, shelf or counter on the plan to stand it on top, or raise it by hand.'}
+              </p>
+            )}
           </div>
         )}
 
