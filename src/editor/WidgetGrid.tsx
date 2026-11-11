@@ -1,5 +1,15 @@
 import { entityName } from '#/devices/catalog.ts'
-import { choiceFor, choices, setRows, setupKey, TilePreview, unstretched, withRows } from '#/editor/TilePicker.tsx'
+import {
+  choiceFor,
+  choices,
+  labelled,
+  labelsOf,
+  setRows,
+  setupKey,
+  TilePreview,
+  unstretched,
+  withRows,
+} from '#/editor/TilePicker.tsx'
 import { cn } from '#/lib/utils.ts'
 import { chosen, type AutoCard } from '#/tiles/auto.ts'
 import { GAP_PX, ROW_PX, span } from '#/tiles/sidePanel.ts'
@@ -16,6 +26,8 @@ export type Widget = {
   // Tells the widget apart from the entity's others.
   id: string
   entity: string
+  // Which of the entity's widgets it is.
+  index: number
   // The tile the panel makes for the entity, before any card is chosen, and
   // the card chosen for this widget, none for the one the panel picks.
   auto: AutoCard
@@ -33,8 +45,8 @@ type Props = {
   onReorder: (ids: string[]) => void
   // The card a widget is now, none for the one the panel picks.
   onSize: (id: string, choice: TileChoice | undefined) => void
-  // Opens the page to pick the entity's cards.
-  onEdit: (entity: string) => void
+  // Opens the page to pick the entity's cards and this widget's name and icon.
+  onEdit: (entity: string, index: number) => void
 }
 
 // A setup of the card the tile is now, at its own size in the panel.
@@ -126,7 +138,7 @@ export function WidgetGrid({ hass, widgets, onReorder, onSize, onEdit }: Props) 
       {shown.map((id, index) => {
         const widget = byId.get(id)!
         const choice = sizing?.id === id ? sizing.choice : widget.choice
-        const name = entityName(hass, widget.entity)
+        const name = labelsOf(widget.choice).name ?? entityName(hass, widget.entity)
         return (
           <Cell
             key={id}
@@ -158,7 +170,7 @@ export function WidgetGrid({ hass, widgets, onReorder, onSize, onEdit }: Props) 
                 setSizing(null)
               else onSize(id, next)
             }}
-            onEdit={() => onEdit(widget.entity)}
+            onEdit={() => onEdit(widget.entity, widget.index)}
           />
         )
       })}
@@ -288,7 +300,7 @@ function Cell({
       const tall = Math.round((event.clientY - top + GAP_PX) / (ROW_PX + GAP_PX))
       rows = Math.min(MAX_ROWS, Math.max(fit.minRows ?? base, tall))
     }
-    const next = choiceFor(autoKey, withRows(fit.config, rows, base ?? undefined))
+    const next = choiceFor(autoKey, labelled(withRows(fit.config, rows, base ?? undefined), labelsOf(saved)))
     if (JSON.stringify(next) === JSON.stringify(current.choice)) return
     current.choice = next
     onSizing(next)
@@ -351,7 +363,7 @@ function Cell({
       )}
       <button
         type="button"
-        data-choose={widget.entity}
+        data-choose={widget.id}
         aria-label={`Change the widget for ${name}`}
         title="Change the widget"
         onClick={onEdit}

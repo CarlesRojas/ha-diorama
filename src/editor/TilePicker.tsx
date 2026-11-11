@@ -7,15 +7,33 @@ import type { HomeAssistant, TileChoice } from '#/types.ts'
 import { useEffect, useRef } from 'react'
 
 // What tells two setups of a card apart: everything in its config but the
-// entity, what the panel adds to every tile, and the rows it was made taller
-// or shorter by, which leave it the same card.
-const PANEL_KEYS = new Set(['entity', 'room_filter', 'never_hide', 'piece_icon', 'invert'])
+// entity, what the panel adds to every tile, the name and icon it shows in
+// place of its entity's, and the rows it was made taller or shorter by,
+// which leave it the same card.
+const PANEL_KEYS = new Set(['entity', 'room_filter', 'never_hide', 'piece_icon', 'invert', 'name', 'icon'])
 export function setupKey(config: Record<string, unknown>) {
   const { rows: _, ...grid } = (config.grid_options ?? {}) as Record<string, unknown>
   const entries = Object.entries({ ...config, grid_options: Object.keys(grid).length > 0 ? grid : undefined }).filter(
     ([key, value]) => !PANEL_KEYS.has(key) && value !== undefined,
   )
   return JSON.stringify(entries.sort(([a], [b]) => a.localeCompare(b)))
+}
+
+// The name and icon a widget shows in place of its entity's own.
+export type Labels = { name?: string; icon?: string }
+
+export function labelsOf(config: Record<string, unknown> | undefined): Labels {
+  const labels: Labels = {}
+  if (typeof config?.name === 'string' && config.name) labels.name = config.name
+  if (typeof config?.icon === 'string' && config.icon) labels.icon = config.icon
+  return labels
+}
+
+// A card's setup showing these, an empty one left out so it shows its
+// entity's own again.
+export function labelled<T extends Record<string, unknown>>(config: T, labels: Labels): T {
+  const { name: _, icon: __, ...rest } = config
+  return { ...rest, ...labelsOf(labels) } as unknown as T
 }
 
 // The rows a card was set to, apart from the ones it takes by itself.
@@ -47,9 +65,11 @@ export function choices(hass: HomeAssistant, auto: AutoCard, chosen: TileChoice 
 }
 
 // What to keep in the YAML for an entity's tile set up as given: nothing
-// when it is the one the panel picks anyway at the rows it takes by itself.
+// when it is the one the panel picks anyway at the rows it takes by itself,
+// with its entity's own name and icon.
 export function choiceFor(autoKey: string, config: Record<string, unknown>): TileChoice | undefined {
-  if (setupKey(config) === autoKey && setRows(config) === undefined) return undefined
+  const plain = setupKey(config) === autoKey && setRows(config) === undefined
+  if (plain && !Object.keys(labelsOf(config)).length) return undefined
   const { entity: _, ...choice } = config
   return choice as TileChoice
 }
@@ -60,22 +80,27 @@ export function choiceFor(autoKey: string, config: Record<string, unknown>): Til
 // its own in the panel: the plus in the corner of a card not shown adds it
 // to the others, and the tick in the corner of one shown takes it away
 // again, but for the last one left. Picking the one the panel would pick
-// anyway leaves the choice out of the YAML.
+// anyway leaves the choice out of the YAML. The widget being edited keeps
+// its name and icon whichever card it becomes, and every card shows them.
 export function TilePicker({
   hass,
   auto,
   picked,
+  editing,
   onChange,
 }: {
   hass: HomeAssistant
   auto: AutoCard
   // The cards picked, none for the one the panel picks.
   picked: (TileChoice | undefined)[]
+  // Which of them is being edited.
+  editing: number
   onChange: (picked: (TileChoice | undefined)[]) => void
 }) {
   const { options, auto: autoKey } = choices(hass, auto, undefined)
   const keys = picked.map(choice => setupKey(unstretched(choice ?? auto)))
   const shown = showing(hass, String(auto.entity))
+  const labels = labelsOf(picked[editing])
   return (
     <div role="group" aria-label="Widgets" className="grid grid-cols-12 items-start px-1.5 pt-1.5" style={{ gap: `18px ${GAP_PX}px` }}>
       {options.map(option => {
@@ -83,7 +108,7 @@ export function TilePicker({
         const at = keys.indexOf(key)
         const on = at >= 0
         const only = () => {
-          if (!on || picked.length > 1) onChange([choiceFor(autoKey, option.config)])
+          if (!on || picked.length > 1) onChange([choiceFor(autoKey, labelled(option.config, labels))])
         }
         const toggle = () => {
           if (!on) onChange([...picked, choiceFor(autoKey, option.config)])
@@ -91,7 +116,12 @@ export function TilePicker({
         }
         // Shown as the panel would show it, with the piece's icon kept.
         const { type: _, size: __, ...kept } = auto
-        const plain: AutoCard = { ...kept, ...option.config, type: String(option.config.type), entity: auto.entity }
+        const plain: AutoCard = {
+          ...kept,
+          ...labelled(option.config, labels),
+          type: String(option.config.type),
+          entity: auto.entity,
+        }
         const { columns, rows } = span(plain, shown)
         return (
           <div key={key} className="relative flex min-w-0 flex-col" style={{ gridColumn: `span ${columns}` }}>

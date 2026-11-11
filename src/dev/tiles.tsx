@@ -97,6 +97,10 @@ for (const s of [
     unit_of_measurement: '°C',
   }),
   state('binary_sensor.living_motion', 'on', { friendly_name: 'Motion', device_class: 'motion' }),
+  // Light moods as scripts with no alias, so their names are their ids.
+  ...['dining', 'lounge', 'reading', 'night'].map(mood =>
+    state(`script.script_downstairs_lights_${mood}`, 'off', { friendly_name: `script_downstairs_lights_${mood}` }),
+  ),
 ])
   states[s.entity_id] = s
 
@@ -251,6 +255,30 @@ const sections: { title: Record<string, unknown>; cards: Record<string, unknown>
   {
     title: { type: 'dio-title', title: 'Office', area: 'office' },
     cards: [{ type: 'dio-toggle', entity: 'light.office_lamp', icon: 'ph:lamp' }],
+  },
+  // The same moods as they come, then each with a name and an icon of its own.
+  {
+    title: { type: 'dio-title', title: 'Moods', never_hide: true },
+    cards: ['dining', 'lounge', 'reading', 'night'].map(mood => ({
+      type: 'dio-button',
+      entity: `script.script_downstairs_lights_${mood}`,
+      never_hide: true,
+    })),
+  },
+  {
+    title: { type: 'dio-title', title: 'Moods, named', never_hide: true },
+    cards: [
+      ['dining', 'Dining', 'ph:fork-knife'],
+      ['lounge', 'Lounge', 'ph:couch'],
+      ['reading', 'Reading', 'ph:lamp'],
+      ['night', 'Night', 'ph:moon-stars'],
+    ].map(([mood, name, icon]) => ({
+      type: 'dio-button',
+      entity: `script.script_downstairs_lights_${mood}`,
+      name,
+      icon,
+      never_hide: true,
+    })),
   },
   {
     title: { type: 'dio-title', title: 'Everywhere', never_hide: true },
