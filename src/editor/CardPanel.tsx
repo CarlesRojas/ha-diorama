@@ -33,6 +33,7 @@ import {
 import { choiceFor, labelled, labelsOf, setupKey, TilePicker, type Labels } from '#/editor/TilePicker.tsx'
 import { IconPicker } from '#/editor/IconPicker.tsx'
 import { WidgetGrid } from '#/editor/WidgetGrid.tsx'
+import { FollowSection } from '#/editor/FollowSection.tsx'
 import { Icon } from '#/tiles/Icon.tsx'
 import { defaultIcon } from '#/tiles/icons.ts'
 import {
@@ -581,6 +582,12 @@ export default function CardPanel({ hass, config, onChange, opening, onOpen }: P
               )
             })}
           </div>
+        </Section>
+      )}
+
+      {rooms.length > 0 && (
+        <Section title="Follow someone" subtitle="The view goes to the room they are in.">
+          <FollowSection hass={hass} config={config} onChange={onChange} roomName={room => roomName(hass, room)} />
         </Section>
       )}
 

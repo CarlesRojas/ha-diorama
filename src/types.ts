@@ -45,6 +45,9 @@ export type HomeAssistant = {
     notifyOnError?: boolean,
   ) => Promise<unknown>
   themes: { darkMode: boolean }
+  // Who is logged in on this screen. A person entity names theirs as its
+  // `user_id`.
+  user?: { id: string; name?: string }
   locale?: { language: string }
   language?: string
   // The state and attributes as Home Assistant words them, translated and
@@ -304,6 +307,18 @@ export type ScreenConfig = {
   // The part of the height the diorama takes with the tiles under it, in
   // percent, in a panel view.
   height?: number
+  // Flies to the room someone is in, on this screen only. Off when absent.
+  follow?: FollowConfig
+}
+
+// Who the card follows from room to room. `who` is `me`, the person of the
+// user logged in, a person's entity id, or `anyone`, the room whose
+// presence sensor last saw someone come in. `sensor` names the sensor that
+// says which area the person is in, when it is not found among the
+// entities of their trackers.
+export type FollowConfig = {
+  who: string
+  sensor?: string
 }
 
 // A card Home Assistant's card picker offers for an entity.

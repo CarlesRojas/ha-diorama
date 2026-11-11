@@ -21,7 +21,7 @@ moves that section under the new version and uses it as the release notes.
 - A Use a background switch at the top of the editor's Background section turns the card's background off, leaving the dashboard's own.
 - A room's floor can be raised or sunk from its block in the editor, for a platform, a step or a sunken living room, and everything in the room goes up or down with it.
 - A crib, a bassinet, a loft bed, a kids sofa, a rocking chair, a sound machine, string lights, a ceiling fan with a light, a bathroom fan, a chest freezer and a dog kennel, each in two or three styles.
-- A room can take a presence sensor, and while someone is in it its floor is seen through a filter in a color of your choice, a soft darkening to start with.
+- A room can take a presence sensor, and while someone is in it its floor is seen through a filter in a color of your choice, a soft darkening to start with. A screen can also be set to follow you, someone else or anyone from room to room, flying to the room they walk into once you have left the card alone for a minute.
 - A piece can be set to only show its device's state, so a click on it opens the device's dialog instead of switching it.
 - A curtain can be a single panel that opens to the left or to the right.
 - A door can be only its frame, with no leaf, for an open doorway between two rooms.
