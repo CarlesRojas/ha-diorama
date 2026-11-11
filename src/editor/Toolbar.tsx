@@ -17,7 +17,7 @@ import {
   faSun,
 } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 type Action = {
   id: string
@@ -47,6 +47,8 @@ const TOOLS: (Action & { id: Tool })[] = [
 type Props = {
   tool: Tool
   onTool: (tool: Tool) => void
+  // The floors of the home, to pick the one being edited.
+  floors?: ReactNode
   onFit: () => void
   showLengths: boolean
   onShowLengths: (value: boolean) => void
@@ -62,6 +64,7 @@ type Props = {
 export default function Toolbar({
   tool,
   onTool,
+  floors,
   onFit,
   showLengths,
   onShowLengths,
@@ -83,6 +86,12 @@ export default function Toolbar({
         ))}
       </div>
       <span className="bg-separator mx-2 h-4 w-px" />
+      {floors && (
+        <>
+          {floors}
+          <span className="bg-separator mx-2 h-4 w-px" />
+        </>
+      )}
       <ToolButton
         action={{ id: 'fit', icon: faExpand, title: 'Fit view', description: 'Frame all rooms.', shortcut: 'F' }}
         color={color}

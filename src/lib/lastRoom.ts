@@ -33,3 +33,30 @@ export function keepRoom(card: string, room: string | null) {
     // Kept for this page only.
   }
 }
+
+// The floor each card with floors was showing, kept the same way, so a card
+// built again opens on that floor even with no room in view.
+const FLOOR_KEY = 'diorama-floor'
+
+let floors: Record<string, string> = {}
+try {
+  floors = JSON.parse(sessionStorage.getItem(FLOOR_KEY) ?? '{}')
+} catch {
+  // Nothing kept, or nothing that can be read.
+}
+
+export function lastFloor(card: string): string | null {
+  return floors[card] ?? null
+}
+
+export function keepFloor(card: string, floor: string | null) {
+  if ((floors[card] ?? null) === floor) return
+  floors = { ...floors }
+  if (floor) floors[card] = floor
+  else delete floors[card]
+  try {
+    sessionStorage.setItem(FLOOR_KEY, JSON.stringify(floors))
+  } catch {
+    // Kept for this page only.
+  }
+}

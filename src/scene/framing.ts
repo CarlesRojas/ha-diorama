@@ -18,7 +18,8 @@ export function sceneHeight(decorations: DecorationConfig[] = []) {
   let top = 0.6
   for (const item of decorations) {
     const kind = decorationKind(item.kind)
-    if (!kind) continue
+    // A flight that climbs up from the floor below reaches down, not up.
+    if (!kind || item.below) continue
     if (kind.mount === 'ceiling') return CEILING_HEIGHT_M
     const height = paramValue(kind, item.params, 'height')
     top = Math.max(top, standHeight(item, decorations) + height + 0.4)

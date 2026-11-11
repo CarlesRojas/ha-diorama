@@ -1,5 +1,5 @@
 import type { Point, RoomConfig } from '#/types.ts'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 // A picture of the home's plan, laid under the drawing to trace the rooms
 // over, the way tracing paper is used. It belongs to the editor on this
@@ -47,39 +47,63 @@ export function traceCovers(trace: Trace, [x, y]: Point) {
   )
 }
 
-function read(): Trace | null {
+// Each floor has a picture of its own. The floor the home started on, or
+// a home with no floors, keeps the one it always had.
+const keyOf = (floor: string | null) => (floor ? `${KEY}:${floor}` : KEY)
+
+function read(floor: string | null): Trace | null {
   try {
     const old = localStorage.getItem(OLD_KEY)
     if (old !== null) {
       if (localStorage.getItem(KEY) === null) localStorage.setItem(KEY, old)
       localStorage.removeItem(OLD_KEY)
     }
-    const stored = localStorage.getItem(KEY)
+    const stored = localStorage.getItem(keyOf(floor))
     return stored ? (JSON.parse(stored) as Trace) : null
   } catch {
     return null
   }
 }
 
-function write(trace: Trace | null) {
+function write(trace: Trace | null, floor: string | null) {
   try {
-    if (trace) localStorage.setItem(KEY, JSON.stringify(trace))
-    else localStorage.removeItem(KEY)
+    if (trace) localStorage.setItem(keyOf(floor), JSON.stringify(trace))
+    else localStorage.removeItem(keyOf(floor))
   } catch {
     // Too big for the browser's storage, or storage is off: the picture
     // stays for as long as the editor is open.
   }
 }
 
-export function useTrace(): [Trace | null, (trace: Trace | null) => void] {
-  const [trace, setTrace] = useState<Trace | null>(read)
+// The picture of the floor being edited, `null` for the floor the home
+// started on. Going to another floor saves the one being moved at once and
+// brings up that floor's own.
+export function useTrace(floor: string | null = null): [Trace | null, (trace: Trace | null) => void] {
+  const [shown, setShown] = useState<{ floor: string | null; trace: Trace | null }>(() => ({
+    floor,
+    trace: read(floor),
+  }))
   const timer = useRef(0)
-  const set = useCallback((next: Trace | null) => {
-    setTrace(next)
+  const unsaved = useRef<{ floor: string | null; trace: Trace | null } | null>(null)
+  const flush = useCallback(() => {
     window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(() => write(next), STORE_MS)
+    if (unsaved.current) write(unsaved.current.trace, unsaved.current.floor)
+    unsaved.current = null
   }, [])
-  return [trace, set]
+  if (shown.floor !== floor) setShown({ floor, trace: read(floor) })
+  // A picture still waiting to be saved is saved for its own floor as soon
+  // as the editor leaves that floor, or closes.
+  useEffect(() => flush, [floor, flush])
+  const set = useCallback(
+    (next: Trace | null) => {
+      setShown({ floor, trace: next })
+      window.clearTimeout(timer.current)
+      unsaved.current = { floor, trace: next }
+      timer.current = window.setTimeout(flush, STORE_MS)
+    },
+    [floor, flush],
+  )
+  return [shown.floor === floor ? shown.trace : null, set]
 }
 
 // Reads a picture from a file, scaled down if it is very large, and lays it

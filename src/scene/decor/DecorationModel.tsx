@@ -27,6 +27,7 @@ import type { DecorationConfig, RoomConfig } from '#/types.ts'
 import { MathUtils } from 'three'
 import { useEased } from '#/scene/decor/ease.ts'
 import { pressedState, usePressed } from '#/scene/decor/pressed.ts'
+import { Faded, type Fade } from '#/scene/decor/fade.tsx'
 
 type Props = {
   item: DecorationConfig
@@ -58,6 +59,9 @@ type Props = {
   // A drag on this piece moves another one, a blind over a window, which the
   // press finds by where it landed.
   passDrag?: Grab
+  // Fades the piece away with height, as a flight of stairs to another
+  // floor does.
+  fade?: Fade
 }
 
 type FamilyModel = (props: {
@@ -145,6 +149,7 @@ function DecorationModel({
   exact,
   onDrag,
   passDrag,
+  fade,
 }: Props) {
   const interactive = usePressActions(onClick, onOpen)
   const rise = useEased(raise, 2)
@@ -202,7 +207,9 @@ function DecorationModel({
       }}
     >
       <group ref={frame} rotation={[0, outside ? Math.PI : 0, 0]}>
-        <Model kind={kind} item={item} state={state} room={room} all={all} />
+        <Faded fade={fade}>
+          <Model kind={kind} item={item} state={state} room={room} all={all} />
+        </Faded>
         {travel && state && (
           // The ghost is where the finger takes it, with no easing.
           <DragGhost level={dragged ?? sent}>
@@ -229,6 +236,7 @@ function DecorationModel({
 // edit, so it only counts through the height it lifts the piece to.
 function unchanged(a: Props, b: Props) {
   if (a.raise !== b.raise || a.floor !== b.floor) return false
+  if (a.fade?.from !== b.fade?.from || a.fade?.to !== b.fade?.to) return false
   if (JSON.stringify(a.between ?? null) !== JSON.stringify(b.between ?? null)) return false
   if (a.item !== b.item || a.room !== b.room || a.onClick !== b.onClick || a.onOpen !== b.onOpen || a.exact !== b.exact)
     return false

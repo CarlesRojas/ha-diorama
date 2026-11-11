@@ -31,6 +31,7 @@ moves that section under the new version and uses it as the release notes.
 - The awning comes in two more folding arm styles that hang on the wall with nothing on the ground, an open one with a striped cloth and a scalloped valance and a semi cassette under a curved hood, and can reach out up to 3 m.
 - A blind, curtain, awning, door, window or anything else that opens with a cover can be set to invert its state, for a device that reports it closed when it is open.
 - A light can be given its own color and brightness for when it is on, for a lamp behind a switch or a light that has neither of its own.
+- A home can have several floors: the editor adds them, picks the one being drawn and shows the others faintly under it, and the card shows one floor at a time with a switch in its corner, where a click on a flight of stairs takes you to the room at its other end on the next floor.
 
 ### Changed
 

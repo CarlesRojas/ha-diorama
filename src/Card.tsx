@@ -8,14 +8,16 @@ import arrowLeft from '@phosphor-icons/core/assets/bold/arrow-left-bold.svg?raw'
 import { useEditorOpen } from '#/lib/editorOpen.ts'
 import { useEmptyClick } from '#/lib/emptyClick.ts'
 import { FOLLOW_ANYONE, followedRoom, useFollow, useLastDetected } from '#/lib/follow.ts'
-import { cardKey, keepRoom, lastRoom } from '#/lib/lastRoom.ts'
+import FloorSwitch from '#/components/FloorSwitch.tsx'
+import { floorFilter, floorOf, floorsOf, floorView, stairLinks, startFloor } from '#/lib/floors.ts'
+import { cardKey, keepFloor, keepRoom, lastFloor, lastRoom } from '#/lib/lastRoom.ts'
 import { usePreviewRoom } from '#/lib/previewRoom.ts'
 import { useRoomFilter } from '#/lib/roomFilter.ts'
 import { thisScreen } from '#/lib/screen.ts'
 import { FpsBadge, type FpsTicks } from '#/scene/FpsMeter.tsx'
 import Scene, { type CameraHandle } from '#/scene/Scene.tsx'
 import type { CameraView, CardConfig, HomeAssistant } from '#/types.ts'
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 
 type Props = {
   hass: HomeAssistant | null
@@ -34,6 +36,10 @@ const VIEW_TOLERANCE_M = 0.02
 const sameView = (a: CameraView, b: CameraView) =>
   a.position.every((v, i) => Math.abs(v - b.position[i]) <= VIEW_TOLERANCE_M) &&
   a.target.every((v, i) => Math.abs(v - b.target[i]) <= VIEW_TOLERANCE_M)
+
+// How long the picture takes to fade out before another floor comes in,
+// and to fade in again after, in milliseconds.
+const FLOOR_FADE_MS = 180
 
 export default function Card({ hass, config, panel = false, preview = false }: Props) {
   const hasRooms = (config.rooms?.length ?? 0) > 0
@@ -60,7 +66,24 @@ export default function Card({ hass, config, panel = false, preview = false }: P
   // settings instead.
   const card = preview ? null : cardKey(config)
   const [focus, setFocus] = useState<string | null>(() => (card ? lastRoom(card) : null))
-  const roomOf = (id: string) => config.rooms?.find(r => r.id === id)
+  // A home of more than one floor shows one at a time, the ground floor to
+  // start with, or the floor of the room it was showing. Everything below
+  // works on the floor in view as if it were the whole home.
+  const floors = useMemo(() => floorsOf(config), [config])
+  const [floorAsked, setFloor] = useState<string | null>(() => {
+    const room = focus && config.rooms?.find(r => r.id === focus)
+    if (room) return floorOf(room, floors) ?? null
+    return card ? lastFloor(card) : null
+  })
+  const floor = floors.length > 1 ? (floors.find(f => f.id === floorAsked)?.id ?? startFloor(floors)?.id ?? null) : null
+  const shown = useMemo(() => floorView(config, floor), [config, floor])
+  // The flights of stairs that lead off this floor, up or down.
+  const links = useMemo(
+    () => stairLinks(config).filter(link => link.lower.floor === floor || link.upper.floor === floor),
+    [config, floor],
+  )
+  const stairs = useMemo(() => new Set(links.map(link => link.id)), [links])
+  const roomOf = (id: string) => shown.rooms?.find(r => r.id === id)
   const viewOf = (id: string) => {
     const room = roomOf(id)
     return room && camera.current?.show(room)
@@ -69,10 +92,33 @@ export default function Card({ hass, config, panel = false, preview = false }: P
   const focused = focus !== null && roomOf(focus) ? focus : null
   // The side panel follows the room in view, and the Diorama tiles on the
   // dashboard too when the card says so.
-  useRoomFilter(focused ? roomOf(focused) : undefined, config.filter_tiles === true)
+  // The tiles are told the floor too, so what is on the others steps aside.
+  const onFloor = useMemo(() => (floor ? floorFilter(config, floor) : undefined), [config, floor])
+  useRoomFilter(focused ? roomOf(focused) : undefined, config.filter_tiles === true, onFloor)
   useEffect(() => {
     if (card) keepRoom(card, focused)
   }, [card, focused])
+  useEffect(() => {
+    if (card && floor) keepFloor(card, floor)
+  }, [card, floor])
+  // Another floor comes in with the picture faded out, so the home does not
+  // jump from one floor to the next under the viewer's eyes. The camera
+  // lands on it straight away: on its whole floor, or on the room asked for.
+  const [fading, setFading] = useState(false)
+  const fadeTimer = useRef(0)
+  useEffect(() => () => window.clearTimeout(fadeTimer.current), [])
+  const goFloor = (to: string, room: string | null = null, fade = true) => {
+    window.clearTimeout(fadeTimer.current)
+    const land = () => {
+      setFloor(to)
+      setFocus(room)
+      // Back in once the floor has had a frame or two to draw.
+      requestAnimationFrame(() => requestAnimationFrame(() => setFading(false)))
+    }
+    if (!fade) return land()
+    setFading(true)
+    fadeTimer.current = window.setTimeout(land, FLOOR_FADE_MS)
+  }
   const goHome = () => {
     setFocus(null)
     camera.current?.reset()
@@ -85,6 +131,13 @@ export default function Card({ hass, config, panel = false, preview = false }: P
   const target = follow?.who === FOLLOW_ANYONE ? lastDetected : followedRoom(hass, config, follow)
   const touched = useFollow(target, !!follow && !paused, id => {
     if (id === focused) return true
+    // A room on another floor takes the card to that floor, faded over.
+    const room = config.rooms?.find(r => r.id === id)
+    const there = room && floors.length > 1 ? floorOf(room, floors) : floor
+    if (room && there && there !== floor) {
+      goFloor(there, id)
+      return true
+    }
     const view = viewOf(id)
     if (!view || !camera.current) return false
     setFocus(id)
@@ -141,6 +194,10 @@ export default function Card({ hass, config, panel = false, preview = false }: P
         if (++tries < 120) frame = requestAnimationFrame(go)
         return
       }
+      // A room on another floor takes the card to that floor first.
+      const asked = previewing ? config.rooms?.find(r => r.id === previewing) : undefined
+      const there = asked && floors.length > 1 ? floorOf(asked, floors) : floor
+      if (asked && there && there !== floor) return goFloor(there, asked.id, false)
       const view = previewing ? viewOf(previewing) : undefined
       if (view) {
         setFocus(previewing)
@@ -156,6 +213,20 @@ export default function Card({ hass, config, panel = false, preview = false }: P
   // rooms were, takes the camera back to the opening view.
   const showHome = () => {
     if (away || focused) goHome()
+  }
+  // A click on a flight of stairs that leads to another floor goes there,
+  // to the room at the other end, the way a door leads into the next room.
+  const climb = (id: string) => {
+    const link = links.find(l => l.id === id)
+    if (!link) return
+    const end = link.lower.floor === floor ? link.upper : link.lower
+    goFloor(end.floor, end.room)
+  }
+  // The floor switch takes the camera to the whole of the floor picked, and
+  // the floor already in view back to its whole floor.
+  const pickFloor = (id: string) => {
+    if (id === floor) showHome()
+    else goFloor(id)
   }
   // With rooms first, a click on a device in a room the camera has not flown
   // to goes to that room. The card comes with devices first, where a device
@@ -202,10 +273,16 @@ export default function Card({ hass, config, panel = false, preview = false }: P
         >
           {hasRooms ? (
             <>
-              <div className="absolute inset-0" style={{ mask: EDGE_FADE_MASK, WebkitMask: EDGE_FADE_MASK }}>
+              <div
+                className={cn('absolute inset-0 transition-opacity ease-in-out', fading ? 'opacity-0' : 'opacity-100')}
+                style={{ mask: EDGE_FADE_MASK, WebkitMask: EDGE_FADE_MASK, transitionDuration: `${FLOOR_FADE_MS}ms` }}
+              >
                 <Scene
                   hass={hass}
-                  config={config}
+                  config={shown}
+                  floor={floor}
+                  stairs={stairs}
+                  onStairs={climb}
                   paused={paused}
                   cameraRef={camera}
                   onPickRoom={showRoom}
@@ -221,6 +298,9 @@ export default function Card({ hass, config, panel = false, preview = false }: P
                 />
               </div>
               {fps && <FpsBadge ticks={fpsTicks} />}
+              {floors.length > 1 && config.floor_switch !== false && (
+                <FloorSwitch floors={floors} current={floor} onPick={pickFloor} />
+              )}
               {/* With a room in view, an arrow in the corner takes it back to
                 the whole home, for a phone with no back button of its own. Just
                 the arrow, faint, over a target big enough for a finger. */}

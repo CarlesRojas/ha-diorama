@@ -3,7 +3,7 @@
 //
 //   http://localhost:5173/src/dev/demoflat.html
 //
-// Query parameters: `flip=light.bedroom,cover.kitchen_blind` starts those
+// Query parameters: `flip=light.bedroom,cover.hall_blind` starts those
 // entities on, open or unlocked; `camera=x,y,z,tx,ty,tz` overrides the
 // opening view; `sun=6` puts the sun at that elevation in degrees, so the
 // room can be shot at dusk; `light` uses Home Assistant's light theme colors
@@ -15,9 +15,11 @@
 // `first=device` has a click on a device act on it from any room;
 // `mobile=1:1` gives the card that aspect ratio while it is narrow, and 16:9
 // otherwise; `frame=living,kitchen` has the view of the whole home zoom in
-// on those rooms; `follow=me` or `follow=anyone` has the card follow a made
-// up person, or the only occupied room, with buttons along the bottom to
-// move them from room to room.
+// on those rooms. `single` leaves out the first floor and the floors with it,
+// so the card is one with no floors, as every card was before them.
+// `follow=me` or `follow=anyone` has the card follow a made up person, or
+// the room where someone was last detected, with buttons along the bottom
+// to move them from room to room.
 // A click on a piece flips its entity, the way Home Assistant would. A cover
 // sent to a position runs there at a tenth of its travel every half second.
 import { screenId } from '#/lib/screen.ts'
@@ -80,6 +82,13 @@ if (mobile) {
 const frame = params.get('frame')
 if (frame) config.frame_rooms = frame.split(',')
 if (params.get('first') === 'device') config.first_click = 'device'
+if (params.has('single')) {
+  const kept = new Set(config.rooms?.filter(room => room.floor_id !== 'first').map(room => room.id))
+  config.rooms = config.rooms?.filter(room => kept.has(room.id)).map(({ floor_id: _floor, ...room }) => room)
+  config.decorations = config.decorations?.filter(item => kept.has(item.room))
+  config.devices = config.devices?.filter(device => kept.has(device.room))
+  delete config.floors
+}
 
 // A person with a phone whose area sensor says which room they are in, as
 // Bermuda makes, and a presence sensor in each room, for following.

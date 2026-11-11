@@ -10,9 +10,12 @@ type AlertDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   children: ReactNode
+  // For what cannot be undone and takes a lot with it: a solid face, so
+  // nothing behind it shows through what it says, and a muted red title.
+  danger?: boolean
 }
 
-export function AlertDialog({ open, onOpenChange, children }: AlertDialogProps) {
+export function AlertDialog({ open, onOpenChange, children, danger = false }: AlertDialogProps) {
   useEffect(() => {
     if (!open) return
     const onKeyDown = (e: KeyboardEvent) => {
@@ -39,6 +42,7 @@ export function AlertDialog({ open, onOpenChange, children }: AlertDialogProps) 
         className={cn(
           floating,
           'w-full max-w-[300px] rounded-[20px] bg-(--card-background-color)/90 px-5 pt-5 pb-4 text-center text-(--primary-text-color)',
+          danger && 'bg-(--card-background-color) backdrop-blur-none',
         )}
         onPointerDown={e => e.stopPropagation()}
       >
@@ -48,12 +52,17 @@ export function AlertDialog({ open, onOpenChange, children }: AlertDialogProps) 
   )
 }
 
+// The red of a dialog about something that cannot be undone, toned down
+// toward the text color so it warns without glaring.
+export const MUTED_DANGER_TEXT = 'text-[color-mix(in_srgb,var(--dio-danger)_70%,var(--primary-text-color))]'
+export const MUTED_DANGER_FILL = 'bg-[color-mix(in_srgb,var(--dio-danger-fill)_68%,#3b3b3b)] hover:brightness-[1.08]'
+
 export function AlertDialogHeader({ children }: { children: ReactNode }) {
   return <div className="flex flex-col gap-1.5">{children}</div>
 }
 
-export function AlertDialogTitle({ children }: { children: ReactNode }) {
-  return <h2 className="text-[17px] font-semibold tracking-tight">{children}</h2>
+export function AlertDialogTitle({ children, danger = false }: { children: ReactNode; danger?: boolean }) {
+  return <h2 className={cn('text-[17px] font-semibold tracking-tight', danger && MUTED_DANGER_TEXT)}>{children}</h2>
 }
 
 export function AlertDialogDescription({ children }: { children: ReactNode }) {
@@ -80,18 +89,22 @@ export function AlertDialogAction({
   onClick,
   variant = 'default',
   className,
+  disabled = false,
 }: {
   children: ReactNode
   onClick: () => void
   variant?: 'default' | 'destructive'
   className?: string
+  disabled?: boolean
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      disabled={disabled}
       className={cn(
         button,
+        'disabled:pointer-events-none disabled:opacity-40',
         variant === 'destructive'
           ? 'bg-danger-fill text-white hover:brightness-[1.06]'
           : 'bg-tint-fill text-white hover:brightness-[1.06]',
