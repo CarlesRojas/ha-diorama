@@ -730,16 +730,6 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       }),
     )
 
-  // Sets custom slab thickness for a room's floor, or resets to standard.
-  const setThickness = (roomId: string, thickness: number | undefined) =>
-    commit(
-      rooms.map(r => {
-        if (r.id !== roomId) return r
-        const { thickness: _dropped, ...rest } = r
-        return thickness ? { ...rest, thickness } : rest
-      }),
-    )
-
   // Sets the sensor that says someone is in a room and the filter laid over
   // its floor while it does, or takes it away.
   const setPresence = (roomId: string, presence: RoomConfig['presence']) =>
@@ -1138,7 +1128,6 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
         onAssignArea={assignArea}
         onFloor={setFloor}
         onElevation={setElevation}
-        onThickness={setThickness}
         floors={floors}
         onAssignFloor={(roomId, floorId) => updateRoom(roomId, { floor_id: floorId })}
         hass={hass}
