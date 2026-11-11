@@ -1,5 +1,6 @@
 import {
   adjustedCount,
+  countValue,
   cycleLength,
   DECORATION_KINDS,
   decorationKind,
@@ -86,6 +87,49 @@ function without(values: Record<string, number>, key: string): Record<string, nu
 function without(values: Record<string, string | number>, key: string) {
   const { [key]: _, ...rest } = values
   return Object.keys(rest).length > 0 ? rest : undefined
+}
+
+// Minus and plus buttons round a count, for a number of parts.
+function Counter({
+  label,
+  count,
+  fewer,
+  more,
+  onStep,
+}: {
+  label: string
+  count: number
+  fewer: boolean
+  more: boolean
+  onStep: (by: number) => void
+}) {
+  const stepper =
+    'flex h-7 w-9 items-center justify-center text-(--primary-text-color) transition-colors hover:bg-fill-strong active:bg-fill-stronger disabled:pointer-events-none disabled:opacity-35'
+  return (
+    <div className="bg-fill-strong flex items-center justify-self-start overflow-hidden rounded-lg">
+      <button
+        type="button"
+        aria-label={`Fewer ${label.toLowerCase()}`}
+        disabled={!fewer}
+        onClick={() => onStep(-1)}
+        className={stepper}
+      >
+        <FontAwesomeIcon icon={faMinus} className="size-3" />
+      </button>
+      <span className="bg-separator h-4 w-px" />
+      <span className="w-7 text-center text-xs font-medium tabular-nums">{count}</span>
+      <span className="bg-separator h-4 w-px" />
+      <button
+        type="button"
+        aria-label={`More ${label.toLowerCase()}`}
+        disabled={!more}
+        onClick={() => onStep(1)}
+        className={stepper}
+      >
+        <FontAwesomeIcon icon={faPlus} className="size-3" />
+      </button>
+    </div>
+  )
 }
 
 export default function DecorationPanel({
@@ -300,33 +344,35 @@ export default function DecorationPanel({
               const { count, max } = adjustedCount(kind, item.params, item.variant)
               const step = (by: number) =>
                 onUpdate(item.id, { params: { ...item.params, [p.id]: Math.round(value) + by } })
-              const stepper =
-                'flex h-7 w-9 items-center justify-center text-(--primary-text-color) transition-colors hover:bg-fill-strong active:bg-fill-stronger disabled:pointer-events-none disabled:opacity-35'
               return (
                 <div key={p.id} className={cn(row, 'grid-cols-[96px_1fr_24px]')}>
                   {p.label}
-                  <div className="bg-fill-strong flex items-center justify-self-start overflow-hidden rounded-lg">
-                    <button
-                      type="button"
-                      aria-label={`Fewer ${p.label.toLowerCase()}`}
-                      disabled={count <= 0 || value <= p.min}
-                      onClick={() => step(-1)}
-                      className={stepper}
-                    >
-                      <FontAwesomeIcon icon={faMinus} className="size-3" />
-                    </button>
-                    <span className="bg-separator h-4 w-px" />
-                    <span className="w-7 text-center text-xs font-medium tabular-nums">{count}</span>
-                    <span className="bg-separator h-4 w-px" />
-                    <button
-                      type="button"
-                      aria-label={`More ${p.label.toLowerCase()}`}
-                      disabled={count >= max || value >= p.max}
-                      onClick={() => step(1)}
-                      className={stepper}
-                    >
-                      <FontAwesomeIcon icon={faPlus} className="size-3" />
-                    </button>
+                  <Counter
+                    label={p.label}
+                    count={count}
+                    fewer={count > 0 && value > p.min}
+                    more={count < max && value < p.max}
+                    onStep={step}
+                  />
+                  {reset}
+                </div>
+              )
+            }
+            // A count the size gives on Auto, or one of its own. Stepping
+            // from Auto starts from the count the size gives, and the reset
+            // goes back to Auto.
+            if (p.auto) {
+              const { count, fewest, most } = countValue(kind, item.params, item.variant)
+              const step = (by: number) =>
+                onUpdate(item.id, {
+                  params: { ...item.params, [p.id]: Math.min(Math.max(count + by, fewest), most) },
+                })
+              return (
+                <div key={p.id} className={cn(row, 'grid-cols-[96px_1fr_24px]')}>
+                  {p.label}
+                  <div className="flex items-center gap-2">
+                    <Counter label={p.label} count={count} fewer={count > fewest} more={count < most} onStep={step} />
+                    {value === 0 && <span className="text-label-2 text-xs">Auto</span>}
                   </div>
                   {reset}
                 </div>

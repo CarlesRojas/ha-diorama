@@ -26,6 +26,10 @@ export const SOFA_SEAT_H = 0.17
 // A seat is never narrower than this. Once the width holds one more at
 // this width, it shares out among one seat more.
 export const SOFA_SEAT_MIN = 0.8
+// A count chosen in the editor can make them narrower, down to this, and no
+// more than this many.
+export const SOFA_SEAT_NARROWEST = 0.45
+export const SOFA_SEATS_MAX = 8
 
 // The thin padded arms, which run the whole depth down to the tops of the
 // legs: thickness and top.
@@ -71,3 +75,21 @@ export const RAIL_SEAT_RAIL: [number, number] = [0.07, 0.3]
 export const RAIL_BACK_T = 0.08
 export const RAIL_BACK_TOP = 0.74
 export const RAIL_CUSHION: [number, number, number] = [0.44, 0.16, 0.18]
+
+// How wide each style's arms are, which the seats sit between.
+export function sofaArmWidth(style: string | undefined) {
+  if (style === 'block') return BLOCK_ARM_W
+  if (style === 'rail') return RAIL_ARM[0]
+  return SOFA_ARM_W
+}
+
+// How many seats a sofa `inner` wide between its arms has when left to its
+// size: as many as fit at their narrowest, so each one stretches until the
+// next one fits. A chaise is an end seat, so it leaves at least one more.
+// And the fewest and the most it can be given.
+export function sofaSeatRange(inner: number, chaise: boolean) {
+  const fewest = chaise ? 2 : 1
+  const auto = Math.max(fewest, Math.floor(inner / SOFA_SEAT_MIN + 1e-6))
+  const most = Math.min(SOFA_SEATS_MAX, Math.max(auto, Math.floor(inner / SOFA_SEAT_NARROWEST + 1e-6)))
+  return { auto, fewest, most: Math.max(fewest, most) }
+}

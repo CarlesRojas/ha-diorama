@@ -1,5 +1,12 @@
 import { EDITOR_DEVICE_GRID_M } from '#/constants.ts'
-import { SOFA_DEPTH, SOFA_REACH, SOFA_WIDTH } from '#/scene/decor/sofaSpecs.ts'
+import {
+  SOFA_DEPTH,
+  SOFA_REACH,
+  SOFA_WIDTH,
+  SOFA_SEATS_MAX,
+  sofaArmWidth,
+  sofaSeatRange,
+} from '#/scene/decor/sofaSpecs.ts'
 import { isModelKind, modelKind } from '#/decoration/models.ts'
 import type { Signal } from '#/signals.ts'
 import { CEILING_HEIGHT_M, LIGHT_BASE_COLOR, LIGHT_SHADE_COLOR, SCANDI, SCREEN_OFF_COLOR } from '#/theme.ts'
@@ -24,6 +31,11 @@ export type DecorationParam = {
   // minus and plus buttons step. The editor shows the count that results,
   // which adjustedCount says.
   adjust?: boolean
+  // A count of parts the size gives while it is 0, which shows as Auto, or
+  // a count of its own that stays put when the size changes. Minus and plus
+  // buttons step it, starting from the count the size gives, and countValue
+  // says what it comes to.
+  auto?: boolean
   // The styles it means something on. Every style when missing.
   variants?: string[]
   // Kept out of the editor: the piece has the value, with no slider for it.
@@ -233,6 +245,23 @@ const adjust = (id: string, label: string): DecorationParam => ({
   unit: '',
   adjust: true,
 })
+
+// How many parts a piece is divided into: Auto, as the size gives, unless
+// one is chosen.
+const count = (id: string, label: string, max: number): DecorationParam => ({
+  id,
+  label,
+  default: 0,
+  min: 0,
+  max,
+  step: 1,
+  unit: '',
+  auto: true,
+})
+
+// The most casements a window can be divided into, and the narrowest one.
+export const WINDOW_PANES_MAX = 8
+const WINDOW_PANE_MIN = 0.25
 
 // A parameter only some of the kind's styles have.
 const only = (param: DecorationParam, variants: string[]): DecorationParam => ({ ...param, variants })
@@ -753,6 +782,7 @@ export const DECORATION_KINDS: DecorationKind[] = [
     [
       width(SOFA_WIDTH, 0.6, 4),
       depth(SOFA_DEPTH, 0.6, 1.3),
+      count('seats', 'Seats', SOFA_SEATS_MAX),
       flag('chaise', 'Chaise longue'),
       p('reach', 'Chaise length', SOFA_REACH, 1.2, 2.2),
       flag('flip', 'Chaise left'),
@@ -2593,7 +2623,15 @@ export const DECORATION_KINDS: DecorationKind[] = [
     'cover',
     'Window',
     'wall',
-    [width(1.2, 0.5, 3), height(1.2, 0.5, 2), p('sill', 'Sill height', 0.9, 0, 1.6), flag('flip', 'Hinge right')],
+    // The side hung styles divide the width into as many casements as it
+    // takes, or as many as are chosen.
+    [
+      width(1.2, 0.5, 3),
+      height(1.2, 0.5, 2),
+      p('sill', 'Sill height', 0.9, 0, 1.6),
+      only(count('panes', 'Panes', WINDOW_PANES_MAX), ['casement', 'steel']),
+      flag('flip', 'Hinge right'),
+    ],
     { frame: SCANDI.offWhite, glass: SCANDI.mist },
     { frame: 'matte', glass: 'ceramic' },
     TOGGLE,
@@ -2615,8 +2653,14 @@ export const DECORATION_KINDS: DecorationKind[] = [
     'Door',
     'wall',
     // A pair of terrace doors has a hinge at each jamb, so it has no side
-    // to switch.
-    [width(0.85, 0.6, 1.4), height(2.05, 1.8, 2.4), only(flag('flip', 'Hinge right'), ['flush', 'panel', 'glazed'])],
+    // to switch. A glazed door is a pair from 1.2 m, or one or two leaves
+    // as chosen, for a pair of French doors narrower than that.
+    [
+      width(0.85, 0.6, 1.4),
+      height(2.05, 1.8, 2.4),
+      only(count('leaves', 'Leaves', 2), ['glazed']),
+      only(flag('flip', 'Hinge right'), ['flush', 'panel', 'glazed']),
+    ],
     { frame: SCANDI.offWhite, panel: SCANDI.offWhite, handle: SCANDI.charcoal },
     { frame: 'matte', panel: 'matte', handle: 'metal' },
     TOGGLE,
@@ -3537,6 +3581,49 @@ export function leafCount(width: number, min = 0.5, max = 1) {
   const fewest = Math.ceil(width / max)
   const most = Math.max(1, Math.floor(width / min))
   return Math.min(Math.max(Math.round(width / 0.75), fewest), Math.max(fewest, most))
+}
+
+// A count chosen in the editor, or the one the size gives while it is left
+// on Auto, kept between the fewest and the most the piece takes.
+function chosen(value: number, auto: number, fewest: number, most: number) {
+  return value > 0 ? Math.min(Math.max(Math.round(value), fewest), most) : auto
+}
+
+// How thick a window's frame is. Steel frames are slimmer than timber or
+// uPVC ones.
+export const windowFrame = (style: string | undefined) => (style === 'steel' ? 0.035 : 0.05)
+
+// The casements of a window `width` wide, frame and all, and the fewest and
+// the most it can be divided into.
+export function windowPanes(width: number, style: string | undefined, panes: number) {
+  const inner = width - windowFrame(style) * 2
+  const most = Math.max(1, Math.floor(inner / WINDOW_PANE_MIN))
+  const auto = leafCount(inner)
+  return { count: chosen(panes, auto, 1, most), auto, fewest: 1, most }
+}
+
+// The leaves of a door: a pair from 1.2 m, and always on a terrace door,
+// unless one or two are chosen.
+export function doorLeaves(width: number, style: string | undefined, leaves: number) {
+  const auto = width > 1.2 || style === 'terrace' ? 2 : 1
+  return { count: chosen(leaves, auto, 1, 2), auto, fewest: 1, most: 2 }
+}
+
+// The seats of a sofa between its arms.
+export function sofaSeats(width: number, style: string | undefined, chaise: boolean, seats: number) {
+  const { auto, fewest, most } = sofaSeatRange(width - sofaArmWidth(style) * 2, chaise)
+  return { count: chosen(seats, auto, fewest, most), auto, fewest, most }
+}
+
+// What an auto count parameter comes to, what the size alone would give,
+// and the fewest and the most it can be stepped to.
+export function countValue(kind: DecorationKind, params: Record<string, number> | undefined, variant?: string) {
+  const v = (id: string) => paramValue(kind, params, id, variant)
+  const style = decorationVariant(kind, variant)?.id
+  if (kind.id === 'sofa') return sofaSeats(v('width'), style, v('chaise') > 0.5, v('seats'))
+  if (kind.id === 'window') return windowPanes(v('width'), style, v('panes'))
+  if (kind.id === 'door') return doorLeaves(v('width'), style, v('leaves'))
+  return { count: 0, auto: 0, fewest: 0, most: 0 }
 }
 
 // The base units of a counter run, left to right, as widths. All are a full
