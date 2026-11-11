@@ -35,7 +35,7 @@ import {
 } from '#/components/ui/alert-dialog.tsx'
 import { cn } from '#/lib/utils.ts'
 import { deviceSignals, levelChannels } from '#/signals.ts'
-import { EDITOR_BOUND_COLOR, EDITOR_TINT_COLOR, ROOM_COLORS } from '#/theme.ts'
+import { EDITOR_BOUND_COLOR, EDITOR_TINT_COLOR, LIGHT_GLOW_COLOR, ROOM_COLORS } from '#/theme.ts'
 import { colorWell, deleteButton, field, group, groupTitle, iconButton, note, plainButton, row } from '#/editor/look.ts'
 import type { DecorationConfig, DeviceConfig, HomeAssistant, ModelConfig, RoomConfig } from '#/types.ts'
 import { decorationIcon, FAMILY_LABELS } from '#/decoration/icons.ts'
@@ -209,6 +209,18 @@ export default function DecorationPanel({
     const boundDevice = devices.find(d => d.decorations?.includes(item.id))
     const boundSignals = hass && boundDevice ? deviceSignals(hass, boundDevice.entity_id) : []
     const channels = hass && boundDevice ? levelChannels(hass, boundDevice.entity_id) : []
+    // A light piece takes a color of its own for when its device has none.
+    const isLight = kind.expresses.includes('color')
+    const deviceColored = boundSignals.includes('color') || boundSignals.includes('warmth')
+    const deviceDimmed = boundSignals.includes('level')
+    const lightNote =
+      deviceColored && deviceDimmed
+        ? 'Its device gives its own color and brightness, which show instead.'
+        : deviceDimmed
+          ? 'Its device gives its own brightness, which shows instead. It glows in this color when on.'
+          : deviceColored
+            ? 'Its device gives its own color, which shows instead. It glows at this brightness when on.'
+            : 'How it glows when on, for a device that gives no color or brightness of its own, such as a switch.'
     // The other pieces the same device stands behind, so what it drives can
     // be seen and let go of from here.
     const siblings = (boundDevice?.decorations ?? [])
@@ -622,6 +634,60 @@ export default function DecorationPanel({
             </label>
           ))}
         </div>
+
+        {/* How a light glows when its device does not say: a switch, or a
+            light with only a brightness. Each control stands, greyed out,
+            while the device gives that one itself, so it is still there to
+            set and is kept for a device that does not. */}
+        {isLight && (
+          <div className={group}>
+            <p className={groupTitle}>Light</p>
+            <label className={cn(row, 'grid-cols-[96px_1fr_24px]', deviceColored && 'opacity-40')}>
+              Color
+              <input
+                type="color"
+                className={colorWell}
+                aria-label="Light color"
+                disabled={deviceColored}
+                value={item.light_color ?? LIGHT_GLOW_COLOR}
+                onChange={e => onUpdate(item.id, { light_color: e.target.value })}
+              />
+              <ResetButton
+                label="Light color"
+                changed={
+                  !deviceColored &&
+                  item.light_color !== undefined &&
+                  item.light_color.toLowerCase() !== LIGHT_GLOW_COLOR.toLowerCase()
+                }
+                onReset={() => onUpdate(item.id, { light_color: undefined })}
+              />
+            </label>
+            <label className={cn(row, 'grid-cols-[96px_1fr_56px_24px]', deviceDimmed && 'opacity-40')}>
+              Brightness
+              <Slider
+                min={0.05}
+                max={1}
+                step={0.05}
+                aria-label="Light brightness"
+                disabled={deviceDimmed}
+                value={item.light_brightness ?? 1}
+                onChange={e => {
+                  const value = Number(e.target.value)
+                  onUpdate(item.id, { light_brightness: value < 1 ? value : undefined })
+                }}
+              />
+              <span className="text-label-2 text-right text-xs tabular-nums">
+                {Math.round((item.light_brightness ?? 1) * 100)}%
+              </span>
+              <ResetButton
+                label="Light brightness"
+                changed={!deviceDimmed && item.light_brightness !== undefined && item.light_brightness !== 1}
+                onReset={() => onUpdate(item.id, { light_brightness: undefined })}
+              />
+            </label>
+            <p className={note}>{lightNote}</p>
+          </div>
+        )}
 
         {/* Every look the piece has, tried in the editor only. One with a
             device starts from the device and never changes the real one. */}

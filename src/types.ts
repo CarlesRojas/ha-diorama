@@ -180,6 +180,14 @@ export type DecorationConfig = {
   params?: Record<string, number>
   // Colors per material slot, as hex strings.
   colors?: Record<string, string>
+  // A light's color when on, as a hex string, for when its device says
+  // none: a switch, or a light that has no color of its own. The warm
+  // default glow when absent. A device that gives a color or a white
+  // still shows its own.
+  light_color?: string
+  // A light's brightness when on, from 0 to 1, for a device that has no
+  // brightness of its own, such as a switch. Full when absent.
+  light_brightness?: number
   // Which of the kind's styles it is drawn in. The kind's first when absent.
   variant?: string
 }
