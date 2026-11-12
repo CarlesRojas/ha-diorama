@@ -9,6 +9,8 @@ moves that section under the new version and uses it as the release notes.
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-12
+
 ### Added
 
 - Imported models can stand for a device: parts named with a tag such as `Shade [glow]`, `Door [hinge y 90]`, `Drawer [slide z 0.4]`, `Rotor [spin y 1]` or `Flame [on]` glow, swing, slide, spin or show with it, and every part starts in the color of its material in the file.
@@ -731,7 +733,8 @@ moves that section under the new version and uses it as the release notes.
 
 ### Changed
 
-[Unreleased]: https://github.com/CarlesRojas/ha-diorama/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/CarlesRojas/ha-diorama/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/CarlesRojas/ha-diorama/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/CarlesRojas/ha-diorama/compare/v1.8.29...v1.9.0
 [1.8.29]: https://github.com/CarlesRojas/ha-diorama/compare/v1.8.28...v1.8.29
 [1.8.28]: https://github.com/CarlesRojas/ha-diorama/compare/v1.8.27...v1.8.28
