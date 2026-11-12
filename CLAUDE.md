@@ -1,6 +1,26 @@
 # Working rules
 
+## This fork
+
+This is `w00lsheep/ha-diorama`, Hendrik's fork of `CarlesRojas/ha-diorama`. It runs on his Home Assistant wall dashboard, installed through HACS as a custom repository that points at this fork. Talk to him in German, casually and briefly. Code, comments, commit messages and docs stay in English and follow the rules below.
+
+What the fork adds on top of upstream:
+
+- Imported models can stand for a device. A tag in square brackets in a node name gives a part a behavior: `[glow]`, `[glow 0.6]`, `[led]`, `[on]`, `[off]`, `[hinge <axis> <deg>]`, `[slide <axis> <m>]`, `[spin <axis> <turns/s>]`. The parser and the signals a model expresses live in `src/decoration/modelTags.ts`. `src/scene/decor/modelShape.ts` keeps each tagged node's origin as the pivot and the color and finish of each part's material. `src/decoration/models.ts` builds the kind from that, and `src/scene/decor/CustomModel.tsx` draws it. Axes are the model's own: x right, y up, z toward the front.
+- `tools/model-builder/build_model.py` builds a tagged .glb from a YAML file of simple shapes, with a preview and a report. Examples are in `tools/model-builder/examples/`. New models for Hendrik's room are built with it, and their YAML goes into `tools/model-builder/models/`.
+- `src/dev/models.html?glb=<url>,<url>` draws .glb files in the card with made up devices, for checking a model with `pnpm dev`. Add `on=1`, `level=0.5`, `sun=-10` or `stretch=1.5,1,1` as needed.
+
+Rules for the fork:
+
+- Keep the fork's changes small and close to upstream's code, so syncing with upstream stays easy. Prefer a new file over spreading edits through existing ones.
+- Syncing with upstream: `git fetch upstream && git merge upstream/main` on `main` (add the remote with `git remote add upstream https://github.com/CarlesRojas/ha-diorama.git` if it is missing). Resolve conflicts in favor of upstream's structure and re-apply the fork's behavior on top. Run `pnpm lint` and `pnpm build` before pushing.
+- Releases: the card reaches Home Assistant only through a release. After a change on `main` that should reach the dashboard, tell Hendrik to run Actions, Release, Run workflow (or run it with `gh workflow run release.yml -f bump=patch` when that is allowed). HACS then offers the update.
+- Never touch the dashboard's card config from here. Hendrik's card config lives in Home Assistant.
+- Anything that would be worth upstream (a fix, the model behaviors as a whole) can be offered as a pull request to `CarlesRojas/ha-diorama`, but only when Hendrik asks for it. Then the branch rules below apply to that pull request.
+
 ## Branch state before any work
+
+In this fork small changes go straight to `main`. Larger work goes on a branch with a pull request in the fork, and for that branch, and for any pull request to upstream, these rules apply.
 
 Before starting any task, check the state of the branch you are working on against `main`:
 
