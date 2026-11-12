@@ -109,6 +109,43 @@ export function stairEnds(item: DecorationConfig) {
   }
 }
 
+// How far a flight climbs when it climbs a whole storey, nothing for any
+// other piece and for a few steps up to a raised floor.
+function storeyRise(item: DecorationConfig | undefined) {
+  const ends = item && stairEnds(item)
+  return ends && ends.rise >= STOREY_RISE_M ? ends.rise : null
+}
+
+// Every flight on a floor that climbs a whole storey climbs the same height,
+// so they all arrive on the floor above. When one changes, the others on its
+// floor take its rise. A new one, with `adopt`, takes theirs instead. A few
+// steps up to a raised floor are left as they are, and so is every flight
+// of a card with no floors to switch.
+export function matchStoreyStairs(
+  config: Pick<CardConfig, 'floors' | 'rooms'>,
+  decorations: DecorationConfig[],
+  id: string,
+  adopt = false,
+): DecorationConfig[] {
+  const floors = floorsOf(config)
+  if (floors.length < 2) return decorations
+  const item = decorations.find(d => d.id === id)
+  const rise = storeyRise(item)
+  if (!item || rise === null) return decorations
+  const roomById = new Map((config.rooms ?? []).map(room => [room.id, room]))
+  const floor = floorOf(roomById.get(item.room), floors)
+  const peer = (d: DecorationConfig) =>
+    d.id !== id && storeyRise(d) !== null && floorOf(roomById.get(d.room), floors) === floor
+  const withRise = (d: DecorationConfig, height: number) => ({ ...d, params: { ...d.params, height } })
+  if (adopt) {
+    const theirs = storeyRise(decorations.find(peer))
+    return theirs === null || theirs === rise
+      ? decorations
+      : decorations.map(d => (d.id === id ? withRise(d, theirs) : d))
+  }
+  return decorations.map(d => (peer(d) && storeyRise(d) !== rise ? withRise(d, rise) : d))
+}
+
 // A flight of stairs that joins two floors: the room it stands in, and the
 // room on the floor above that its top step arrives in.
 export type StairLink = {
