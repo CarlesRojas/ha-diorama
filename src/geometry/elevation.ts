@@ -1,7 +1,8 @@
 import type { RoomConfig } from '#/types.ts'
 
-// How far a room's floor stands above the rest of the home, in meters.
-export const elevationOf = (room: RoomConfig | undefined) => room?.elevation ?? 0
+// How far a room's floor stands above the rest of the home, in meters, and
+// with every floor in view at once, above the lowest floor.
+export const elevationOf = (room: RoomConfig | undefined) => (room?.elevation ?? 0) + (room?.storey ?? 0)
 
 // The lowest and highest floors of the home, never above or below level,
 // so the slabs can all reach down to one base and the framing can take in

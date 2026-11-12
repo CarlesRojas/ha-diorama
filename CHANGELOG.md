@@ -9,6 +9,10 @@ moves that section under the new version and uses it as the release notes.
 
 ## [Unreleased]
 
+### Added
+
+- A home of several floors can offer an All floors button above its floor switch, turned on in the card's settings, that shows every floor at once, one over the other, and a click on a room goes to its floor.
+
 ## [1.9.0] - 2026-11-11
 
 ### Added

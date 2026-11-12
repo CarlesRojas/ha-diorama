@@ -147,6 +147,14 @@ export default function CardPanel({ hass, config, onChange, opening, onOpen }: P
     onChange(on ? rest : { ...rest, floor_switch: false })
   }
 
+  // Whether the floor switch also offers every floor at once, stacked. Off
+  // is the default, so it is not written down.
+  const allFloors = config.all_floors === true
+  const setAllFloors = (on: boolean) => {
+    const { all_floors: _, ...rest } = config
+    onChange(on ? { ...rest, all_floors: true } : rest)
+  }
+
   // The rooms the view of the whole home frames. None chosen frames them
   // all, so an empty list is not written down.
   const framed = config.frame_rooms ?? []
@@ -430,6 +438,17 @@ export default function CardPanel({ hass, config, onChange, opening, onOpen }: P
                 </span>
               </span>
               <Switch checked={floorSwitch} accent={EDITOR_TINT_COLOR} label="Floor switch" onChange={setFloorSwitch} />
+            </label>
+          )}
+          {hasFloors(config) && floorSwitch && (
+            <label className="border-separator flex cursor-pointer items-center justify-between gap-4 border-t py-2.5">
+              <span className="flex min-w-0 flex-col">
+                <span className="text-[13px]">All floors view</span>
+                <span className="text-label-2 text-xs">
+                  A button above the floors that shows them all at once, one over the other
+                </span>
+              </span>
+              <Switch checked={allFloors} accent={EDITOR_TINT_COLOR} label="All floors view" onChange={setAllFloors} />
             </label>
           )}
           <div className="border-separator flex flex-col gap-2 border-t py-3">
