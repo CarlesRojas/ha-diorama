@@ -7,7 +7,7 @@ import {
   sofaArmWidth,
   sofaSeatRange,
 } from '#/scene/decor/sofaSpecs.ts'
-import { isModelKind, modelKind } from '#/decoration/models.ts'
+import { isModelKind, modelDomains, modelKind } from '#/decoration/models.ts'
 import type { Signal } from '#/signals.ts'
 import { CEILING_HEIGHT_M, LIGHT_BASE_COLOR, LIGHT_SHADE_COLOR, SCANDI, SCREEN_OFF_COLOR } from '#/theme.ts'
 
@@ -138,6 +138,7 @@ const KIND_DOMAINS: Record<string, string[]> = {
 }
 
 export function preferredDomains(kind: DecorationKind): string[] {
+  if (isModelKind(kind)) return modelDomains(kind.id)
   return KIND_DOMAINS[kind.id] ?? FAMILY_DOMAINS[kind.family] ?? []
 }
 

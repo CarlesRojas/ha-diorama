@@ -1,5 +1,6 @@
 import { MODEL_MAX_PARTS } from '#/decoration/models.ts'
-import type { ModelConfig } from '#/types.ts'
+import { cleanLook, cleanMotion, isActive, parseTags, untagged, type PartTags } from '#/decoration/modelTags.ts'
+import type { ModelConfig, ModelLook, ModelMotion } from '#/types.ts'
 import {
   BufferAttribute,
   BufferGeometry,
@@ -21,7 +22,16 @@ import { mergeVertices, toCreasedNormals } from 'three/examples/jsm/utils/Buffer
 
 // One part of a model: its corners in meters, three numbers each, with the
 // model standing on y = 0 and centered on x and z, and its triangles.
-export type ShapePart = { name: string; positions: Float32Array; index: Uint16Array | Uint32Array }
+// A part that comes from a device carries what it does: see modelTags.ts.
+export type ShapePart = {
+  name: string
+  positions: Float32Array
+  index: Uint16Array | Uint32Array
+  motion?: ModelMotion
+  look?: ModelLook
+  color?: string
+  finish?: string
+}
 // The width, depth and height are along x, z and y.
 export type Shape = { size: [number, number, number]; triangles: number; parts: ShapePart[] }
 
@@ -87,14 +97,67 @@ function namesOf(gltf: GLTF, object: Object3D): Names {
 // A name as a person would write it: Blender's .001 copies and the
 // underscores that stand for spaces taken out.
 const tidy = (name: string | undefined) =>
-  (name ?? '')
-    .replace(/\.\d{3,}$/, '')
+  untagged((name ?? '').replace(/\.\d{3,}$/, ''))
     .replace(/[_]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 40)
 
-type Piece = { name: string; material: string; positions: number[]; index: number[] }
+type Piece = {
+  name: string
+  material: string
+  positions: number[]
+  index: number[]
+  // What it does, with the pivot of a motion where it stands in the file.
+  motion?: ModelMotion
+  look?: ModelLook
+  // What its material in the file says, when it has one.
+  color?: string
+  finish?: string
+}
+
+const FINISHES = new Set(['matte', 'fabric', 'wood', 'ceramic', 'metal'])
+
+// The paint a material in the file stands for: its color, and a finish by
+// its name when that is one of the card's, or else by how metallic and how
+// rough it is. A mesh with no material of its own says nothing.
+function paintOf(gltf: GLTF, material: Mesh['material'] | undefined): { color?: string; finish?: string } {
+  const m = (Array.isArray(material) ? material[0] : material) as
+    { name?: string; color?: { getHexString: () => string }; metalness?: number; roughness?: number } | undefined
+  // The loader paints a mesh with no material in a plain white of its own,
+  // with no name. A material it had to copy, for a mesh without normals,
+  // keeps the name but not the link back to the file.
+  if (!m || (gltf.parser.associations.get(m as never)?.materials === undefined && !m.name)) return {}
+  const named = (m.name ?? '')
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .find(w => FINISHES.has(w))
+  const finish = named ?? ((m.metalness ?? 0) > 0.5 ? 'metal' : (m.roughness ?? 1) < 0.35 ? 'ceramic' : 'matte')
+  return { ...(m.color && { color: `#${m.color.getHexString()}` }), finish }
+}
+
+// The nearest motion and the nearest look tagged on the mesh or on a node
+// above it, and where the node with the motion has its origin.
+function tagsAbove(gltf: GLTF, object: Object3D): { motion?: ModelMotion; look?: ModelLook } {
+  const json = gltf.parser.json as { nodes?: { name?: string }[]; meshes?: { name?: string }[] }
+  const out: { motion?: ModelMotion; look?: ModelLook } = {}
+  for (let o: Object3D | null = object; o && !(out.motion && out.look); o = o.parent) {
+    const at = gltf.parser.associations.get(o) as { nodes?: number; meshes?: number } | undefined
+    const names = [
+      at?.nodes !== undefined ? json.nodes?.[at.nodes]?.name : undefined,
+      at?.meshes !== undefined ? json.meshes?.[at.meshes]?.name : undefined,
+    ]
+    for (const name of names) {
+      const tags: PartTags = parseTags(name)
+      if (!out.look && tags.look) out.look = tags.look
+      if (!out.motion && tags.motion) {
+        const origin = new Vector3().setFromMatrixPosition(o.matrixWorld)
+        out.motion = { ...tags.motion, pivot: [origin.x, origin.y, origin.z] }
+      }
+    }
+  }
+  return out
+}
 
 const corner = new Vector3()
 const place = new Matrix4()
@@ -113,6 +176,7 @@ function piecesOf(gltf: GLTF): Piece[] {
     const position = geometry.attributes.position
     const names = namesOf(gltf, mesh)
     const material = Array.isArray(mesh.material) ? mesh.material[0] : mesh.material
+    const tags = tagsAbove(gltf, mesh)
     let name = tidy(names.node) || tidy(names.mesh)
     // A mesh in several materials is told apart by them, a chair's frame
     // from its seat.
@@ -147,7 +211,7 @@ function piecesOf(gltf: GLTF): Piece[] {
         index[t + 1] = mirrored ? c : b
         index[t + 2] = mirrored ? b : c
       }
-      pieces.push({ name, material: tidy(material?.name), positions, index })
+      pieces.push({ name, material: tidy(material?.name), positions, index, ...tags, ...paintOf(gltf, mesh.material) })
     }
   })
   return pieces
@@ -155,13 +219,18 @@ function piecesOf(gltf: GLTF): Piece[] {
 
 const triangleCount = (pieces: Piece[]) => pieces.reduce((sum, p) => sum + p.index.length / 3, 0)
 
+// What a piece does, so that two pieces of the same name that move round
+// different hinges stay two parts.
+const doing = (p: Piece) => (isActive(p) ? `\u0001${JSON.stringify([p.motion ?? null, p.look ?? null])}` : '')
+
 // Pieces with the same name are one part, so the four legs of a table are
 // painted together. A piece with no name is a part of its own.
 function gather(pieces: Piece[], by: (p: Piece) => string): Piece[][] {
   const groups = new Map<string, Piece[]>()
   let unnamed = 0
   for (const piece of pieces) {
-    const key = by(piece).toLowerCase() || `\u0000${unnamed++}`
+    const own = by(piece).toLowerCase()
+    const key = own || isActive(piece) ? `${own}${doing(piece)}` : `\u0000${unnamed++}`
     const list = groups.get(key)
     if (list) list.push(piece)
     else groups.set(key, [piece])
@@ -172,20 +241,29 @@ function gather(pieces: Piece[], by: (p: Piece) => string): Piece[][] {
 // Few enough parts to paint one by one and to draw in a few calls. Past the
 // limit they are gathered by what they are made of, and past it still the
 // smallest go together as Other.
+// The parts that come from a device always stay parts of their own, by
+// name, since what they do is theirs: only the still ones are gathered.
 function partsOf(pieces: Piece[]): { name: string; pieces: Piece[] }[] {
-  let groups = gather(pieces, p => p.name)
+  const active = gather(pieces.filter(isActive), p => p.name)
+  const still = pieces.filter(p => !isActive(p))
+  const room = Math.max(MODEL_MAX_PARTS - active.length, 1)
+  let groups = gather(still, p => p.name)
   let named = (group: Piece[]) => group[0].name
-  if (groups.length > MODEL_MAX_PARTS) {
-    groups = gather(pieces, p => p.material)
+  if (groups.length > room) {
+    groups = gather(still, p => p.material)
     named = group => group[0].material
   }
-  if (groups.length > MODEL_MAX_PARTS) {
+  if (groups.length > room) {
     groups.sort((a, b) => triangleCount(b) - triangleCount(a))
-    const rest = groups.splice(MODEL_MAX_PARTS - 1).flat()
+    const rest = groups.splice(room - 1).flat()
     groups.push(rest.map(p => ({ ...p, name: 'Other', material: 'Other' })))
   }
+  const all = [
+    ...groups.map(g => ({ group: g, named })),
+    ...active.map(g => ({ group: g, named: (x: Piece[]) => x[0].name })),
+  ]
   const used = new Set<string>()
-  return groups.map((group, i) => {
+  return all.map(({ group, named }, i) => {
     let name = named(group) || `Part ${i + 1}`
     for (let n = 2; used.has(name.toLowerCase()); n++) name = `${named(group) || 'Part'} ${n}`
     used.add(name.toLowerCase())
@@ -201,6 +279,8 @@ function unitOf(largest: number) {
   while (largest * scale > 30) scale /= scale === 1 ? 100 : 10
   return scale
 }
+
+const round4 = (value: number) => Math.round(value * 10000) / 10000
 
 // The shape in a glTF file, standing on the floor and centered, in meters.
 export function shapeOf(gltf: GLTF): Shape {
@@ -237,7 +317,22 @@ export function shapeOf(gltf: GLTF): Shape {
     const source = welded.index!.array
     const kept = n > 65536 ? new Uint32Array(source.length) : new Uint16Array(source.length)
     kept.set(source)
-    return { name, positions: p, index: kept }
+    const first = group[0]
+    const motion: ModelMotion | undefined = first.motion && {
+      ...first.motion,
+      // A slide is a length, in the file's unit like everything else in it.
+      amount: first.motion.type === 'slide' ? round4(first.motion.amount * scale) : first.motion.amount,
+      pivot: first.motion.pivot.map((v, axis) => round4((v - middle[axis]) * scale)) as [number, number, number],
+    }
+    return {
+      name,
+      positions: p,
+      index: kept,
+      ...(motion && { motion }),
+      ...(first.look && { look: first.look }),
+      ...(first.color && { color: first.color }),
+      ...(first.finish && { finish: first.finish }),
+    }
   })
   // To the millimeter, which is how it is written in the config.
   const mm = (value: number) => Math.max(Math.round(value * scale * 1000) / 1000, 0.01)
@@ -278,6 +373,10 @@ export function encodeShape(shape: Shape): ModelConfig['parts'] {
       name: part.name,
       vertices: toBase64(new Uint8Array(q.buffer)),
       triangles: toBase64(new Uint8Array(part.index.buffer, part.index.byteOffset, part.index.byteLength)),
+      ...(part.motion && { motion: part.motion }),
+      ...(part.look && { look: part.look }),
+      ...(part.color && { color: part.color }),
+      ...(part.finish && { finish: part.finish }),
     }
   })
 }
@@ -303,7 +402,9 @@ function decodePart(part: ModelConfig['parts'][number], size: [number, number, n
       positions[i + 1] = (q[i + 1] / 65535) * h
       positions[i + 2] = (q[i + 2] / 65535 - 0.5) * d
     }
-    return { name: part.name, positions, index }
+    const motion = cleanMotion(part.motion)
+    const look = cleanLook(part.look)
+    return { name: part.name, positions, index, ...(motion && { motion }), ...(look && { look }) }
   } catch {
     return null
   }

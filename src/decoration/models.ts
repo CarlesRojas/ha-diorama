@@ -1,4 +1,5 @@
 import type { DecorationKind, DecorationParam, Mount } from '#/decoration/catalog.ts'
+import { modelOpens, modelPreferredDomains, modelSignals } from '#/decoration/modelTags.ts'
 import { SCANDI } from '#/theme.ts'
 import type { ModelConfig } from '#/types.ts'
 
@@ -54,7 +55,13 @@ function side(id: string, label: string, own: number): DecorationParam {
 // Everything the parts and the stored shape say that a kind is made from.
 // The shape itself is left out: once imported it never changes.
 const signatureOf = (model: ModelConfig) =>
-  JSON.stringify([model.name, model.size, model.mount, model.url, model.parts.map(p => p.name)])
+  JSON.stringify([
+    model.name,
+    model.size,
+    model.mount,
+    model.url,
+    model.parts.map(p => [p.name, p.motion, p.look, p.color, p.finish]),
+  ])
 
 function kindOf(id: string, model: ModelConfig): DecorationKind {
   const mount: Mount = model.mount === 'wall' || model.mount === 'ceiling' ? model.mount : 'floor'
@@ -69,7 +76,13 @@ function kindOf(id: string, model: ModelConfig): DecorationKind {
     const sill = clamp(round2(1.5 - h / 2), 0, 2.5)
     params.push({ id: 'sill', label: 'Off floor', default: sill, min: 0, max: 3, step: 0.01 })
   }
-  const colors = Object.fromEntries(model.parts.map(p => [p.name, MODEL_COLOR]))
+  // Each part starts in the paint its material in the file gave it, or in
+  // the neutral linen when it had none.
+  const hex = (c: unknown) => (typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) ? c : MODEL_COLOR)
+  const colors = Object.fromEntries(model.parts.map(p => [p.name, hex(p.color)]))
+  const materials = Object.fromEntries(
+    model.parts.filter(p => typeof p.finish === 'string').map(p => [p.name, p.finish as string]),
+  )
   return {
     id: modelKindId(id),
     family: MODEL_FAMILY,
@@ -77,8 +90,10 @@ function kindOf(id: string, model: ModelConfig): DecorationKind {
     mount,
     params,
     colors,
-    materials: {},
-    expresses: [],
+    materials,
+    // What its parts do with a device, read from the tags in their names
+    // when it was imported. A model that only stands there shows nothing.
+    expresses: modelSignals(model.parts),
   }
 }
 
@@ -117,6 +132,10 @@ export function validModel(model: unknown): model is ModelConfig {
 export const modelKind = (kindId: string) => registry.get(kindId)?.kind
 export const modelOf = (kindId: string) => registry.get(kindId)?.model
 export const isModelKind = (kind: DecorationKind) => kind.family === MODEL_FAMILY
+// The kinds of device offered first for a model, from what its parts do.
+export const modelDomains = (kindId: string) => modelPreferredDomains(modelOf(kindId)?.parts ?? [])
+// Whether its percentage is how far it is open, a door or a drawer.
+export const modelIsPositioned = (kindId: string) => modelOpens(modelOf(kindId)?.parts ?? [])
 
 // The kinds of a card's models, in the order they were imported.
 export function modelKinds(models: Record<string, ModelConfig> | undefined): DecorationKind[] {

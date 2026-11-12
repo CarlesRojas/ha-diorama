@@ -711,7 +711,11 @@ export default function DecorationPanel({
         <div className={group}>
           <p className={groupTitle}>Device</p>
           {kind.expresses.length === 0 ? (
-            <p className={note}>This item shows nothing a device could drive, so it stands for nothing.</p>
+            <p className={note}>
+              {isModelKind(kind)
+                ? 'No part of this model is tagged to show a device. Name a part in the file with a tag such as Shade [glow], Door [hinge y 90] or Drawer [slide z 0.4] and import it again.'
+                : 'This item shows nothing a device could drive, so it stands for nothing.'}
+            </p>
           ) : (
             <>
               <Select

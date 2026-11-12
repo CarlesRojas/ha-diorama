@@ -9,6 +9,10 @@ moves that section under the new version and uses it as the release notes.
 
 ## [Unreleased]
 
+### Added
+
+- Imported models can stand for a device: parts named with a tag such as `Shade [glow]`, `Door [hinge y 90]`, `Drawer [slide z 0.4]`, `Rotor [spin y 1]` or `Flame [on]` glow, swing, slide, spin or show with it, and every part starts in the color of its material in the file.
+
 ## [1.9.0] - 2026-11-11
 
 ### Added

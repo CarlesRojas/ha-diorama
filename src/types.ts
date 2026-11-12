@@ -229,10 +229,44 @@ export type ModelConfig = {
   // Its parts, each one a color the item panel can set. A part's shape is
   // kept here, `vertices` as three 16 bit numbers per corner across the
   // model's own box and `triangles` as indexes into them, both base64.
-  parts: { name: string; vertices?: string; triangles?: string }[]
+  parts: ModelPart[]
   // A file to read the shape from instead, like one in /config/www, which
   // Home Assistant serves as /local/. The parts then only name the colors.
   url?: string
+}
+
+// What one part of an imported model does with the device behind its
+// piece, read from a tag in square brackets in the name of its node or of a
+// node above it in the file, like `Door [hinge y 90]` or `Shade [glow]`.
+// A motion turns or moves the part around `pivot`, the origin of the node
+// the tag is on, in meters in the model's own frame at its own size: x to
+// the right, y up and z toward the front, with the model standing on y = 0
+// and centered on x and z. `axis` is a unit vector in that frame.
+// hinge turns it by `amount` degrees as the piece opens, slide moves it
+// `amount` meters, and spin turns it `amount` times a second while on.
+export type ModelMotion = {
+  type: 'hinge' | 'slide' | 'spin'
+  axis: [number, number, number]
+  amount: number
+  pivot: [number, number, number]
+}
+
+// How a part looks with the device. glow shines in the light's color and
+// lights the room from the middle of every glowing part, `output` times what
+// a lamp gives. led shines the same but lights nothing. on shows the part
+// only while the device is on, off only while it is off.
+export type ModelLook = { type: 'glow' | 'led' | 'on' | 'off'; output?: number }
+
+export type ModelPart = {
+  name: string
+  vertices?: string
+  triangles?: string
+  // The color it starts in, from its material in the file, as a hex string.
+  color?: string
+  // How matte or polished it is: matte, fabric, wood, ceramic or metal.
+  finish?: string
+  motion?: ModelMotion
+  look?: ModelLook
 }
 
 export type CardConfig = {

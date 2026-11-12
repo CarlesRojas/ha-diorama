@@ -147,7 +147,15 @@ export async function importLink(link: string, models: Models): Promise<Imported
     name,
     size: shape.size,
     triangles: shape.triangles,
-    parts: shape.parts.map(p => ({ name: p.name })),
+    // The file is read again on every screen, so only what the kind is
+    // made from is kept: the names, the paint and what each part does.
+    parts: shape.parts.map(p => ({
+      name: p.name,
+      ...(p.motion && { motion: p.motion }),
+      ...(p.look && { look: p.look }),
+      ...(p.color && { color: p.color }),
+      ...(p.finish && { finish: p.finish }),
+    })),
     url,
   }
   return { id: idFor(name, models), model }

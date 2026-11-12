@@ -38,7 +38,7 @@ type Props = {
 // surfaces. Segment counts stay low so the silhouettes read as simple.
 const SEG = 32
 
-function Glow({
+export function Glow({
   state,
   at,
   spread = 0,
@@ -149,7 +149,7 @@ function Glow({
 // still cast for the sun and for every other lamp. Three asks no one which
 // light a part should cast for, so the part is drawn as nothing while the
 // shadow of its own bulb is drawn.
-function ownShadowless(group: Group) {
+export function ownShadowless(group: Group) {
   const lights: PointLight[] = []
   group.traverse(object => {
     if ((object as PointLight).isPointLight && !object.userData.through) lights.push(object as PointLight)
