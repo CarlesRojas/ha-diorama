@@ -1,6 +1,7 @@
 import { distanceToOutline } from '#/decoration/between.ts'
 import { decorationKind, decorationVariant, footprint, paramValue } from '#/decoration/catalog.ts'
 import { pointOnBoundary, pointStrictlyInside } from '#/geometry/overlap.ts'
+import { CEILING_HEIGHT_M } from '#/theme.ts'
 import type { CardConfig, DecorationConfig, Point, RoomConfig } from '#/types.ts'
 
 // The floors of a home. A card with none, or with one, has every room on
@@ -108,6 +109,43 @@ export function stairEnds(item: DecorationConfig) {
   }
 }
 
+// How far a flight climbs when it climbs a whole storey, nothing for any
+// other piece and for a few steps up to a raised floor.
+function storeyRise(item: DecorationConfig | undefined) {
+  const ends = item && stairEnds(item)
+  return ends && ends.rise >= STOREY_RISE_M ? ends.rise : null
+}
+
+// Every flight on a floor that climbs a whole storey climbs the same height,
+// so they all arrive on the floor above. When one changes, the others on its
+// floor take its rise. A new one, with `adopt`, takes theirs instead. A few
+// steps up to a raised floor are left as they are, and so is every flight
+// of a card with no floors to switch.
+export function matchStoreyStairs(
+  config: Pick<CardConfig, 'floors' | 'rooms'>,
+  decorations: DecorationConfig[],
+  id: string,
+  adopt = false,
+): DecorationConfig[] {
+  const floors = floorsOf(config)
+  if (floors.length < 2) return decorations
+  const item = decorations.find(d => d.id === id)
+  const rise = storeyRise(item)
+  if (!item || rise === null) return decorations
+  const roomById = new Map((config.rooms ?? []).map(room => [room.id, room]))
+  const floor = floorOf(roomById.get(item.room), floors)
+  const peer = (d: DecorationConfig) =>
+    d.id !== id && storeyRise(d) !== null && floorOf(roomById.get(d.room), floors) === floor
+  const withRise = (d: DecorationConfig, height: number) => ({ ...d, params: { ...d.params, height } })
+  if (adopt) {
+    const theirs = storeyRise(decorations.find(peer))
+    return theirs === null || theirs === rise
+      ? decorations
+      : decorations.map(d => (d.id === id ? withRise(d, theirs) : d))
+  }
+  return decorations.map(d => (peer(d) && storeyRise(d) !== rise ? withRise(d, rise) : d))
+}
+
 // A flight of stairs that joins two floors: the room it stands in, and the
 // room on the floor above that its top step arrives in.
 export type StairLink = {
@@ -179,6 +217,37 @@ export function floorView(config: CardConfig, floor: string | null | undefined):
     decorations: [...(config.decorations ?? []).filter(item => ids.has(item.room)), ...arriving],
     devices: (config.devices ?? []).filter(device => ids.has(device.room)),
     frame_rooms: config.frame_rooms?.filter(id => ids.has(id)),
+  }
+}
+
+// What the floor switch asks for to show every floor at once.
+export const ALL_FLOORS = '*'
+
+// How far a floor stands above the one below it with all of them in view,
+// in meters, when no flight of stairs climbs between them to say: the
+// room's height, which is also the rise a new flight of stairs starts with.
+export const STOREY_M = CEILING_HEIGHT_M
+
+// The card with every floor in view at once: each floor lifted above the
+// one below it by the height its stairs climb, the ground floor where it
+// always is, so the flights between floors reach the floor above. The
+// camera frames the whole stack.
+export function stackedView(config: CardConfig): CardConfig {
+  const floors = floorsOf(config)
+  if (floors.length < 2) return config
+  const links = stairLinks(config)
+  const rise = (from: string) =>
+    Math.max(0, ...links.filter(link => link.lower.floor === from).map(link => link.rise)) || STOREY_M
+  // How high each floor stands, counted from the lowest up, then moved so
+  // the floor the card opens on stays at level.
+  const heights: number[] = []
+  floors.forEach((_, i) => heights.push(i === 0 ? 0 : heights[i - 1] + rise(floors[i - 1].id)))
+  const base = heights[floors.indexOf(startFloor(floors)!)]
+  const storey = new Map(floors.map((floor, i) => [floor.id, heights[i] - base]))
+  return {
+    ...config,
+    camera: undefined,
+    rooms: (config.rooms ?? []).map(room => ({ ...room, storey: storey.get(floorOf(room, floors)!) ?? 0 })),
   }
 }
 

@@ -9,6 +9,10 @@ moves that section under the new version and uses it as the release notes.
 
 ## [Unreleased]
 
+### Added
+
+- A home of several floors can offer an All floors button above its floor switch, turned on in the card's new Floors settings, that shows every floor at once, one over the other, and a click on a room goes to its floor. The stairs on a floor that climb to the next one now all keep the same height, while a few steps up to a raised floor keep their own.
+
 ## [1.9.0] - 2026-11-11
 
 ### Added
