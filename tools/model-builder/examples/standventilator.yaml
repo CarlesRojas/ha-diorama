@@ -1,0 +1,71 @@
+# Beispiel: Standventilator. Die Rotorblätter drehen sich, solange der
+# Ventilator an ist (Tempo x Prozentstufe), und eine kleine LED am Fuß
+# leuchtet nur im An-Zustand. Bindbar an fan.* oder switch.*
+name: Standventilator
+mount: floor
+segments: 32
+parts:
+  - name: Fuss
+    shape: cylinder
+    radius: 0.16
+    radius_top: 0.15
+    height: 0.03
+    color: "#f1efea"
+  - name: Mast
+    shape: cylinder
+    radius: 0.015
+    height: 0.95
+    at: [0, 0.03, 0]
+    color: "#c9ccce"
+    finish: metal
+  - name: Motor
+    shape: capsule
+    radius: 0.06
+    height: 0.2
+    rot: [90, 0, 0]
+    at: [0, 1.0, -0.12]
+    color: "#f1efea"
+  - name: Korb
+    shape: torus
+    radius: 0.2
+    tube: 0.006
+    rot: [90, 0, 0]
+    at: [0, 1.0, 0.1]
+    color: "#c9ccce"
+    finish: metal
+  - group: Rotor
+    tag: spin z 2
+    pivot: [0, 1.0, 0.08]
+    parts:
+      - name: Nabe
+        shape: sphere
+        radius: 0.035
+        at: [0, 1.0, 0.08]
+        color: "#f1efea"
+      - name: Blatt
+        shape: box
+        size: [0.06, 0.17, 0.008]
+        radius: 0.003
+        at: [0, 1.0, 0.08]
+        rot: [0, 0, 0]
+        color: "#dfe6ea"
+      - name: Blatt
+        shape: box
+        size: [0.06, 0.17, 0.008]
+        radius: 0.003
+        at: [0, 1.0, 0.08]
+        rot: [0, 0, 120]
+        color: "#dfe6ea"
+      - name: Blatt
+        shape: box
+        size: [0.06, 0.17, 0.008]
+        radius: 0.003
+        at: [0, 1.0, 0.08]
+        rot: [0, 0, 240]
+        color: "#dfe6ea"
+  - name: Betriebs-LED
+    tag: "on"
+    shape: sphere
+    radius: 0.008
+    at: [0.11, 0.03, 0.06]
+    color: "#5ad16a"

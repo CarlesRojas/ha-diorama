@@ -1,0 +1,25 @@
+# Beispiel: Tischlampe mit Stoffschirm. Der Schirm glüht in der Lichtfarbe
+# und beleuchtet den Raum (Punktlicht in der Schirmmitte). Bindbar an light.*
+name: Tischlampe Leinen
+mount: floor
+segments: 40
+parts:
+  - name: Fuss
+    shape: lathe
+    profile: [[0, 0], [0.07, 0], [0.072, 0.01], [0.06, 0.03], [0.03, 0.05], [0, 0.05]]
+    color: "#3a3b3d"
+    finish: ceramic
+  - name: Staender
+    shape: cylinder
+    radius: 0.008
+    height: 0.24
+    at: [0, 0.05, 0]
+    color: "#b08d57"
+    finish: metal
+  - name: Schirm
+    tag: glow 0.75
+    shape: lathe
+    profile: [[0.13, 0.22], [0.08, 0.4]]
+    thickness: 0.004
+    color: "#ece3d0"
+    finish: fabric

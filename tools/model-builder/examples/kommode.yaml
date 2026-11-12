@@ -1,0 +1,82 @@
+# Beispiel: Kommode mit zwei Flügeltüren und einer Schublade. Bindbar an
+# cover.* (Türen und Schublade folgen der Position) oder an einen Schalter
+# (dann ganz auf / ganz zu).
+name: Kommode
+mount: floor
+segments: 24
+parts:
+  - name: Korpus
+    shape: box
+    size: [1.0, 0.72, 0.42]
+    radius: 0.01
+    at: [0, 0.08, -0.01]
+    color: "#efe9df"
+    finish: matte
+  - name: Platte
+    shape: box
+    size: [1.04, 0.025, 0.45]
+    radius: 0.008
+    at: [0, 0.8, 0]
+    color: "#c8a57a"
+    finish: wood
+  # Vier Beine, über mirror an beiden Achsen gespiegelt
+  - name: Bein
+    shape: cylinder
+    radius: 0.018
+    radius_top: 0.024
+    height: 0.08
+    at: [0.44, 0, 0.15]
+    color: "#c8a57a"
+    finish: wood
+    mirror: x
+  - name: Bein
+    shape: cylinder
+    radius: 0.018
+    radius_top: 0.024
+    height: 0.08
+    at: [0.44, 0, -0.15]
+    color: "#c8a57a"
+    finish: wood
+    mirror: x
+  # Linke Tür: Scharnier links vorne, öffnet nach vorne-links (Drehung um -y)
+  - group: Tuer
+    tag: hinge -y 100
+    pivot: [-0.495, 0.1, 0.205]
+    mirror: x
+    parts:
+      - name: Front
+        shape: box
+        size: [0.49, 0.46, 0.018]
+        radius: 0.006
+        at: [-0.25, 0.1, 0.214]
+        color: "#efe9df"
+      - name: Griff
+        shape: rod
+        from: [-0.04, 0.3, 0.226]
+        to: [-0.04, 0.42, 0.226]
+        radius: 0.006
+        color: "#2b2c2d"
+        finish: metal
+  # Schublade oben: zieht 30 cm nach vorne
+  - group: Schublade
+    tag: slide z 0.3
+    pivot: [0, 0.6, 0.2]
+    parts:
+      - name: Schubladenfront
+        shape: box
+        size: [0.98, 0.17, 0.018]
+        radius: 0.006
+        at: [0, 0.6, 0.214]
+        color: "#efe9df"
+      - name: Schubladenkasten
+        shape: box
+        size: [0.9, 0.12, 0.36]
+        at: [0, 0.62, 0.03]
+        color: "#d9cdb8"
+      - name: Griff
+        shape: rod
+        from: [-0.08, 0.69, 0.228]
+        to: [0.08, 0.69, 0.228]
+        radius: 0.006
+        color: "#2b2c2d"
+        finish: metal
