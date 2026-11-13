@@ -103,6 +103,9 @@ export type RoomConfig = {
   // negative, in meters: a raised platform, a step or a sunken living room.
   // Everything in the room stands on it.
   elevation?: number
+  // Set by the card, never saved: with every floor in view at once, how far
+  // the whole floor this room is on is lifted above the lowest one.
+  storey?: number
   // A sensor that says someone is in the room. While it does, the floor is
   // seen through a filter of `color`, black by default, laid over it at
   // `strength`, from 0 to 1.
@@ -327,6 +330,9 @@ export type CardConfig = {
   // With false, a home of several floors shows no floor switch in its
   // corner, and its floors are only reached by the stairs between them.
   floor_switch?: boolean
+  // With true, the floor switch of a home of several floors has one more
+  // button above the floors, which shows them all at once, stacked.
+  all_floors?: boolean
   // The side panel's own section for the whole home, under its `name`,
   // Home by default: the tiles of its `entities`, in this order. With any
   // set, it is all the panel shows with the whole home in view, unless

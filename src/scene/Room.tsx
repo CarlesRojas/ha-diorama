@@ -6,7 +6,7 @@ import { floorColor } from '#/scene/floorColor.ts'
 import { useEased } from '#/scene/decor/ease.ts'
 import { presenceTint } from '#/scene/presence.ts'
 import { ensureCounterClockwise, inset, roundedShape } from '#/geometry/polygon.ts'
-import { elevationOf, elevationRange } from '#/geometry/elevation.ts'
+import { elevationOf } from '#/geometry/elevation.ts'
 import { slabGeometry, touchesNeighbour } from '#/geometry/slab.ts'
 import type { Point, RoomConfig } from '#/types.ts'
 import { memo, useMemo } from 'react'
@@ -29,7 +29,10 @@ type Props = {
 // under a press once the pieces around it have had their turn.
 function Room({ room, rooms, index, radius, gap, occupied = false }: Props) {
   const elevation = elevationOf(room)
-  const [lowest] = elevationRange(rooms)
+  // With every floor in view, a floor reaches down only as far as the
+  // lowest room of its own floor, and leaves the floor below in sight.
+  const storey = room.storey ?? 0
+  const lowest = Math.min(storey, ...rooms.filter(other => (other.storey ?? 0) === storey).map(elevationOf))
   const geometry = useMemo(() => {
     const points = inset(ensureCounterClockwise(room.points), gap / 2)
     const cornerRadius = room.radius ?? radius
@@ -40,7 +43,9 @@ function Room({ room, rooms, index, radius, gap, occupied = false }: Props) {
     const neighbours =
       gap > TOUCHING_GAP_M
         ? []
-        : rooms.filter(other => other.id !== room.id && elevationOf(other) >= elevation).map(r => r.points)
+        : rooms.filter(
+            other => other.id !== room.id && (other.storey ?? 0) === storey && elevationOf(other) >= elevation,
+          ).map(r => r.points)
     // A concave corner wraps around a neighbour's convex corner. For the two
     // arcs to be concentric its radius grows by the gap.
     const outline = roundedShape(points, cornerRadius, cornerRadius + gap, i => touchesNeighbour(points[i], neighbours))
@@ -56,7 +61,7 @@ function Room({ room, rooms, index, radius, gap, occupied = false }: Props) {
       SLAB_BEVEL_SEGMENTS,
       FLOOR_PATTERN_SHIFT_M,
     )
-  }, [room.id, room.points, room.radius, rooms, radius, gap, elevation, lowest])
+  }, [room.id, room.points, room.radius, rooms, radius, gap, elevation, lowest, storey])
 
   const floor = room.floor ? FLOOR_MATERIALS[room.floor.material] : undefined
   // The presence filter fades over the floor and away again.

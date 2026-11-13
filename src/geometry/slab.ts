@@ -106,7 +106,12 @@ export function slabGeometry(
     const k1 = before.round ? 1 : 0
     const k2 = after.round ? 1 : 0
     const det = before.nx * after.ny - before.ny * after.nx
-    if (Math.abs(det) < 1e-3) {
+    // Where the rounding stops at a corner, the inset corner slides along
+    // the square edge by one over the sine of the turn, which throws it far
+    // out of place at a shallow turn, as on the arc of a rounded corner that
+    // another room's corner lands on. Below a turn of 30 degrees the corner
+    // is doubled instead, the same as on a straight line.
+    if (Math.abs(det) < (k1 === k2 ? 1e-3 : 0.5)) {
       if (k1 !== k2) {
         corners.push({ p: points[i], m: [before.nx * k1, before.ny * k1] })
         leaving.push(null)

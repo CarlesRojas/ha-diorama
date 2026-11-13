@@ -12,6 +12,11 @@ moves that section under the new version and uses it as the release notes.
 ### Added
 
 - Imported models can be stood on: a part named with the `[top]` tag, such as `Board [top]`, takes lamps and other pieces on its upper face like a table does, and a model with several, like a shelf unit, lets a piece step from board to board under Standing on.
+- A home of several floors can offer an All floors button above its floor switch, turned on in the card's new Floors settings, that shows every floor at once, one over the other, and a click on a room goes to its floor. The stairs on a floor that climb to the next one now all keep the same height, while a few steps up to a raised floor keep their own.
+
+### Fixed
+
+- A floor no longer shows a jagged notch at its corner when another room's corner lands right next to it.
 
 ## [1.10.0] - 2026-11-12
 

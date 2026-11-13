@@ -9,7 +9,16 @@ import { useEditorOpen } from '#/lib/editorOpen.ts'
 import { useEmptyClick } from '#/lib/emptyClick.ts'
 import { FOLLOW_ANYONE, followedRoom, useFollow, useLastDetected } from '#/lib/follow.ts'
 import FloorSwitch from '#/components/FloorSwitch.tsx'
-import { floorFilter, floorOf, floorsOf, floorView, stairLinks, startFloor } from '#/lib/floors.ts'
+import {
+  ALL_FLOORS,
+  floorFilter,
+  floorOf,
+  floorsOf,
+  floorView,
+  stackedView,
+  stairLinks,
+  startFloor,
+} from '#/lib/floors.ts'
 import { cardKey, keepFloor, keepRoom, lastFloor, lastRoom } from '#/lib/lastRoom.ts'
 import { usePreviewRoom } from '#/lib/previewRoom.ts'
 import { useRoomFilter } from '#/lib/roomFilter.ts'
@@ -75,8 +84,15 @@ export default function Card({ hass, config, panel = false, preview = false }: P
     if (room) return floorOf(room, floors) ?? null
     return card ? lastFloor(card) : null
   })
-  const floor = floors.length > 1 ? (floors.find(f => f.id === floorAsked)?.id ?? startFloor(floors)?.id ?? null) : null
-  const shown = useMemo(() => floorView(config, floor), [config, floor])
+  // A card that offers it can show every floor at once, stacked.
+  const stacked = floors.length > 1 && config.all_floors === true && floorAsked === ALL_FLOORS
+  const floor =
+    floors.length > 1
+      ? stacked
+        ? ALL_FLOORS
+        : (floors.find(f => f.id === floorAsked)?.id ?? startFloor(floors)?.id ?? null)
+      : null
+  const shown = useMemo(() => (stacked ? stackedView(config) : floorView(config, floor)), [config, floor, stacked])
   // The flights of stairs that lead off this floor, up or down.
   const links = useMemo(
     () => stairLinks(config).filter(link => link.lower.floor === floor || link.upper.floor === floor),
@@ -93,7 +109,7 @@ export default function Card({ hass, config, panel = false, preview = false }: P
   // The side panel follows the room in view, and the Diorama tiles on the
   // dashboard too when the card says so.
   // The tiles are told the floor too, so what is on the others steps aside.
-  const onFloor = useMemo(() => (floor ? floorFilter(config, floor) : undefined), [config, floor])
+  const onFloor = useMemo(() => (floor && !stacked ? floorFilter(config, floor) : undefined), [config, floor, stacked])
   useRoomFilter(focused ? roomOf(focused) : undefined, config.filter_tiles === true, onFloor)
   useEffect(() => {
     if (card) keepRoom(card, focused)
@@ -168,6 +184,11 @@ export default function Card({ hass, config, panel = false, preview = false }: P
     // its walls that were put in the room on the other side. A press on one
     // of those with nowhere to go is a press on the room that is showing.
     const id = beyond ?? focused ?? asked
+    // With every floor in view, a room takes the card to its own floor,
+    // with that room in view.
+    const room = stacked ? config.rooms?.find(r => r.id === id) : undefined
+    const there = room && floorOf(room, floors)
+    if (there) return goFloor(there, id)
     const view = viewOf(id)
     if (!view || !camera.current) return
     if (id === focused || sameView(camera.current.view(), view)) goHome()
@@ -299,7 +320,7 @@ export default function Card({ hass, config, panel = false, preview = false }: P
               </div>
               {fps && <FpsBadge ticks={fpsTicks} />}
               {floors.length > 1 && config.floor_switch !== false && (
-                <FloorSwitch floors={floors} current={floor} onPick={pickFloor} />
+                <FloorSwitch floors={floors} current={floor} all={config.all_floors === true} onPick={pickFloor} />
               )}
               {/* With a room in view, an arrow in the corner takes it back to
                 the whole home, for a phone with no back button of its own. Just

@@ -7,7 +7,16 @@ import RoomInfo from '#/editor/RoomInfo.tsx'
 import { field, plainButton } from '#/editor/look.ts'
 import Toolbar from '#/editor/Toolbar.tsx'
 import FloorPicker from '#/editor/FloorPicker.tsx'
-import { floorOf, floorsOf, floorView, levelName, stairLinks, pieceOutline, startFloor } from '#/lib/floors.ts'
+import {
+  floorOf,
+  floorsOf,
+  floorView,
+  levelName,
+  matchStoreyStairs,
+  stairLinks,
+  pieceOutline,
+  startFloor,
+} from '#/lib/floors.ts'
 import { traceFrom, useTrace } from '#/editor/trace.ts'
 import type { Selection, Tool } from '#/editor/types.ts'
 import { fitView, roomCenter, round, type View } from '#/editor/view.ts'
@@ -428,7 +437,8 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       item.position = snapped.point
       item.rotation = snapped.rotation
     }
-    commit(rooms, devices, [...decorations, item], models)
+    // A flight that climbs a storey climbs as high as the others on its floor.
+    commit(rooms, devices, matchStoreyStairs({ floors, rooms }, [...decorations, item], item.id, true), models)
     setSelection({ roomId: null, vertex: null })
     setAddRoom(room.id)
     setSelectedDecoration(item.id)
@@ -509,12 +519,21 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     if (selectedDecoration && gone.has(selectedDecoration)) setSelectedDecoration(null)
   }
 
-  const updateDecoration = (id: string, patch: Partial<DecorationConfig>) =>
+  // A flight that climbs a storey takes the others on its floor with it,
+  // and one moved to another room takes theirs.
+  const updateDecoration = (id: string, patch: Partial<DecorationConfig>) => {
+    const moved = patch.room !== undefined && patch.room !== decorations.find(d => d.id === id)?.room
     commit(
       rooms,
       devices,
-      decorations.map(d => (d.id === id ? { ...d, ...patch } : d)),
+      matchStoreyStairs(
+        { floors, rooms },
+        decorations.map(d => (d.id === id ? { ...d, ...patch } : d)),
+        id,
+        moved,
+      ),
     )
+  }
 
   // Unbinds the item from every device, so it stands in for at most one.
   const unbindEverywhere = (list: DeviceConfig[], id: string): DeviceConfig[] =>
@@ -608,7 +627,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       rooms.find(r => r.id === item.room),
     )
     copy.id = nextDecorationId(item.kind)
-    commit(rooms, devices, [...decorations, copy])
+    commit(rooms, devices, matchStoreyStairs({ floors, rooms }, [...decorations, copy], copy.id, true))
     setSelection({ roomId: null, vertex: null })
     setSelectedDecoration(copy.id)
   }
@@ -626,7 +645,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
     const copy = offsetCopy(item, room)
     copy.id = nextDecorationId(item.kind)
     if (!within(copy.position, room.points)) copy.position = pointInside(room.points)
-    commit(rooms, devices, [...decorations, copy])
+    commit(rooms, devices, matchStoreyStairs({ floors, rooms }, [...decorations, copy], copy.id, true))
     setSelection({ roomId: null, vertex: null })
     setSelectedDecoration(copy.id)
   }

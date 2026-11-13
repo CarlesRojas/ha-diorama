@@ -16,7 +16,9 @@
 // `mobile=1:1` gives the card that aspect ratio while it is narrow, and 16:9
 // otherwise; `frame=living,kitchen` has the view of the whole home zoom in
 // on those rooms. `single` leaves out the first floor and the floors with it,
-// so the card is one with no floors, as every card was before them.
+// so the card is one with no floors, as every card was before them. `all`
+// adds the button that shows every floor at once to the floor switch, and
+// `three` adds a second floor that is a copy of the first.
 // `follow=me` or `follow=anyone` has the card follow a made up person, or
 // the room where someone was last detected, with buttons along the bottom
 // to move them from room to room.
@@ -82,6 +84,21 @@ if (mobile) {
 const frame = params.get('frame')
 if (frame) config.frame_rooms = frame.split(',')
 if (params.get('first') === 'device') config.first_click = 'device'
+if (params.has('all')) config.all_floors = true
+if (params.has('three')) {
+  // A second floor that is a copy of the first, to see three floors at once.
+  const copy = <T extends { id: string }>(item: T) => ({ ...item, id: `${item.id}_2` })
+  const upstairs = new Set(config.rooms?.filter(room => room.floor_id === 'first').map(room => room.id))
+  config.floors = [...(config.floors ?? []), { id: 'second', name: 'Second floor', level: 2 }]
+  config.rooms = [
+    ...(config.rooms ?? []),
+    ...(config.rooms ?? []).filter(room => upstairs.has(room.id)).map(room => ({ ...copy(room), floor_id: 'second' })),
+  ]
+  config.decorations = [
+    ...(config.decorations ?? []),
+    ...(config.decorations ?? []).filter(item => upstairs.has(item.room)).map(item => ({ ...copy(item), room: `${item.room}_2` })),
+  ]
+}
 if (params.has('single')) {
   const kept = new Set(config.rooms?.filter(room => room.floor_id !== 'first').map(room => room.id))
   config.rooms = config.rooms?.filter(room => kept.has(room.id)).map(({ floor_id: _floor, ...room }) => room)
