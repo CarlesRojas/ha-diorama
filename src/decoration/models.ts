@@ -1,7 +1,7 @@
 import type { DecorationKind, DecorationParam, Mount } from '#/decoration/catalog.ts'
-import { modelOpens, modelPreferredDomains, modelSignals } from '#/decoration/modelTags.ts'
+import { cleanTops, modelOpens, modelPreferredDomains, modelSignals } from '#/decoration/modelTags.ts'
 import { SCANDI } from '#/theme.ts'
-import type { ModelConfig } from '#/types.ts'
+import type { ModelConfig, ModelTop } from '#/types.ts'
 
 // Models imported into the editor's catalog. The catalog itself is fixed,
 // but each card brings its own models in its config, so their kinds are made
@@ -32,7 +32,7 @@ export const MODELS_MAX_BYTES = 2_500_000
 // made of, each part a color slot and a draw call of its own.
 export const MODEL_MAX_PARTS = 16
 
-type Entry = { kind: DecorationKind; model: ModelConfig; signature: string }
+type Entry = { kind: DecorationKind; model: ModelConfig; signature: string; tops: ModelTop[] }
 const registry = new Map<string, Entry>()
 
 const round2 = (value: number) => Math.round(value * 100) / 100
@@ -60,6 +60,7 @@ const signatureOf = (model: ModelConfig) =>
     model.size,
     model.mount,
     model.url,
+    model.tops,
     model.parts.map(p => [p.name, p.motion, p.look, p.color, p.finish]),
   ])
 
@@ -97,6 +98,12 @@ function kindOf(id: string, model: ModelConfig): DecorationKind {
   }
 }
 
+// The tops of a model other pieces can stand on, lowest first, at the size
+// the model was made in. None for a model without a part tagged for it, and
+// none for one hanging from the ceiling.
+const topsOf = (model: ModelConfig) => (model.mount === 'ceiling' ? [] : cleanTops(model.tops))
+const NO_TOPS: ModelTop[] = []
+
 // Makes the kinds for a card's models, keeping the ones that did not change
 // so whatever holds on to a kind is handed the same one.
 export function registerModels(models: Record<string, ModelConfig> | undefined) {
@@ -110,7 +117,7 @@ export function registerModels(models: Record<string, ModelConfig> | undefined) 
       known.model = model
       continue
     }
-    registry.set(key, { kind: kindOf(id, model), model, signature })
+    registry.set(key, { kind: kindOf(id, model), model, signature, tops: topsOf(model) })
   }
 }
 
@@ -131,6 +138,7 @@ export function validModel(model: unknown): model is ModelConfig {
 
 export const modelKind = (kindId: string) => registry.get(kindId)?.kind
 export const modelOf = (kindId: string) => registry.get(kindId)?.model
+export const modelTops = (kindId: string) => registry.get(kindId)?.tops ?? NO_TOPS
 export const isModelKind = (kind: DecorationKind) => kind.family === MODEL_FAMILY
 // The kinds of device offered first for a model, from what its parts do.
 export const modelDomains = (kindId: string) => modelPreferredDomains(modelOf(kindId)?.parts ?? [])

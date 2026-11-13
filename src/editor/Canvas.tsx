@@ -477,12 +477,18 @@ export default function Canvas({
         // A piece put on the floor from its panel stays there, so it can be
         // slid under a table without climbing onto it.
         if (kind && canRide(kind) && !(item.floor && !item.on)) {
-          const support = supportUnder(landing.position, { ...item, room: landing.room }, current)
-          if (support) {
-            const { floor: _floor, ...rest } = landing
-            landing = { ...rest, on: support.id, room: support.room }
+          const under = supportUnder(landing.position, { ...item, room: landing.room }, current)
+          const support = under?.support
+          if (under && support) {
+            const { floor: _floor, level: _level, ...rest } = landing
+            landing = {
+              ...rest,
+              on: support.id,
+              room: support.room,
+              ...(under.level !== undefined && { level: under.level }),
+            }
           } else if (landing.on) {
-            const { on: _dropped, ...rest } = landing
+            const { on: _dropped, level: _level, ...rest } = landing
             landing = rest
           }
           setHoverSupport(support?.id ?? null)

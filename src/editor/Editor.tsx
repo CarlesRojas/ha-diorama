@@ -499,7 +499,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       .filter(d => !gone.has(d.id))
       .map(d => {
         if (!d.on || !gone.has(d.on)) return d
-        const { on: _dropped, ...rest } = d
+        const { on: _dropped, level: _level, ...rest } = d
         return rest
       })
     let list = devices
@@ -531,7 +531,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       .filter(d => d.id !== id)
       .map(d => {
         if (d.on !== id) return d
-        const { on: _dropped, ...rest } = d
+        const { on: _dropped, level: _level, ...rest } = d
         return rest
       })
     commit(rooms, unbindEverywhere(devices, id), left)
@@ -540,14 +540,14 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
 
   // Stands an item at another height where it is: on one of the tops under
   // it, on the floor, or at the height it has on its own.
-  const standOn = (id: string, level: { on: string | null; floor: boolean }) => {
+  const standOn = (id: string, level: { on: string | null; floor: boolean; level?: number }) => {
     commit(
       rooms,
       devices,
       decorations.map(d => {
         if (d.id !== id) return d
-        const { on: _on, floor: _floor, ...rest } = d
-        if (level.on) return { ...rest, on: level.on }
+        const { on: _on, floor: _floor, level: _level, ...rest } = d
+        if (level.on) return { ...rest, on: level.on, ...(level.level !== undefined && { level: level.level }) }
         return level.floor ? { ...rest, floor: true } : rest
       }),
     )
@@ -568,7 +568,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       devices,
       decorations.map(d => {
         if (d.id === id) {
-          const { floor: _floor, ...rest } = d
+          const { floor: _floor, level: _level, ...rest } = d
           return { ...rest, position, rotation, room: support.room, on: support.id }
         }
         if (!riders.has(d.id)) return d
@@ -925,7 +925,7 @@ export default function Editor({ hass, config, onChange, onSave }: Props) {
       .filter(d => !goneItems.has(d.id))
       .map(d => {
         if (!d.on || !goneItems.has(d.on)) return d
-        const { on: _dropped, ...rest } = d
+        const { on: _dropped, level: _level, ...rest } = d
         return rest
       })
     const left = levels.filter(f => f.id !== id).map(written)

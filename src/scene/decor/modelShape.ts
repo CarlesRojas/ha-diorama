@@ -1,6 +1,15 @@
 import { MODEL_MAX_PARTS } from '#/decoration/models.ts'
-import { cleanLook, cleanMotion, isActive, parseTags, untagged, type PartTags } from '#/decoration/modelTags.ts'
-import type { ModelConfig, ModelLook, ModelMotion } from '#/types.ts'
+import {
+  cleanLook,
+  cleanMotion,
+  cleanTops,
+  isActive,
+  MODEL_MAX_TOPS,
+  parseTags,
+  untagged,
+  type PartTags,
+} from '#/decoration/modelTags.ts'
+import type { ModelConfig, ModelLook, ModelMotion, ModelTop } from '#/types.ts'
 import {
   BufferAttribute,
   BufferGeometry,
@@ -33,7 +42,8 @@ export type ShapePart = {
   finish?: string
 }
 // The width, depth and height are along x, z and y.
-export type Shape = { size: [number, number, number]; triangles: number; parts: ShapePart[] }
+// The tops are the upper faces of the meshes tagged `[top]`, lowest first.
+export type Shape = { size: [number, number, number]; triangles: number; parts: ShapePart[]; tops: ModelTop[] }
 
 // Edges sharper than this stay sharp, softer ones are shaded round.
 const CREASE = (40 * Math.PI) / 180
@@ -111,6 +121,8 @@ type Piece = {
   // What it does, with the pivot of a motion where it stands in the file.
   motion?: ModelMotion
   look?: ModelLook
+  // Whether its upper face is a top for other pieces to stand on.
+  top?: boolean
   // What its material in the file says, when it has one.
   color?: string
   finish?: string
@@ -137,11 +149,12 @@ function paintOf(gltf: GLTF, material: Mesh['material'] | undefined): { color?: 
 }
 
 // The nearest motion and the nearest look tagged on the mesh or on a node
-// above it, and where the node with the motion has its origin.
-function tagsAbove(gltf: GLTF, object: Object3D): { motion?: ModelMotion; look?: ModelLook } {
+// above it, and where the node with the motion has its origin. A top is
+// said by the mesh itself or by any node above it.
+function tagsAbove(gltf: GLTF, object: Object3D): { motion?: ModelMotion; look?: ModelLook; top?: boolean } {
   const json = gltf.parser.json as { nodes?: { name?: string }[]; meshes?: { name?: string }[] }
-  const out: { motion?: ModelMotion; look?: ModelLook } = {}
-  for (let o: Object3D | null = object; o && !(out.motion && out.look); o = o.parent) {
+  const out: { motion?: ModelMotion; look?: ModelLook; top?: boolean } = {}
+  for (let o: Object3D | null = object; o; o = o.parent) {
     const at = gltf.parser.associations.get(o) as { nodes?: number; meshes?: number } | undefined
     const names = [
       at?.nodes !== undefined ? json.nodes?.[at.nodes]?.name : undefined,
@@ -149,6 +162,7 @@ function tagsAbove(gltf: GLTF, object: Object3D): { motion?: ModelMotion; look?:
     ]
     for (const name of names) {
       const tags: PartTags = parseTags(name)
+      if (tags.top) out.top = true
       if (!out.look && tags.look) out.look = tags.look
       if (!out.motion && tags.motion) {
         const origin = new Vector3().setFromMatrixPosition(o.matrixWorld)
@@ -282,6 +296,57 @@ function unitOf(largest: number) {
 
 const round4 = (value: number) => Math.round(value * 10000) / 10000
 
+// The tops in a model: the upper face of every still piece tagged for it,
+// as the box round the piece seen from above. Two at the same height that
+// touch are one top, so a board made of several meshes is stood on as one.
+// `place` takes a corner in the file to where it is in the model.
+function topsOf(pieces: Piece[], place: (value: number, axis: number) => number): ModelTop[] {
+  type Box = { y: number; x0: number; x1: number; z0: number; z1: number }
+  const boxes: Box[] = []
+  for (const piece of pieces) {
+    if (!piece.top || piece.motion || piece.positions.length === 0) continue
+    const box: Box = { y: -Infinity, x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity }
+    for (let i = 0; i < piece.positions.length; i += 3) {
+      const x = place(piece.positions[i], 0)
+      const y = place(piece.positions[i + 1], 1)
+      const z = place(piece.positions[i + 2], 2)
+      box.y = Math.max(box.y, y)
+      box.x0 = Math.min(box.x0, x)
+      box.x1 = Math.max(box.x1, x)
+      box.z0 = Math.min(box.z0, z)
+      box.z1 = Math.max(box.z1, z)
+    }
+    const near = 0.005
+    const same = boxes.find(
+      b =>
+        Math.abs(b.y - box.y) <= near &&
+        b.x0 <= box.x1 + near &&
+        box.x0 <= b.x1 + near &&
+        b.z0 <= box.z1 + near &&
+        box.z0 <= b.z1 + near,
+    )
+    if (same) {
+      same.y = Math.max(same.y, box.y)
+      same.x0 = Math.min(same.x0, box.x0)
+      same.x1 = Math.max(same.x1, box.x1)
+      same.z0 = Math.min(same.z0, box.z0)
+      same.z1 = Math.max(same.z1, box.z1)
+    } else boxes.push(box)
+  }
+  return boxes
+    .filter(b => b.x1 - b.x0 > 0.01 && b.z1 - b.z0 > 0.01)
+    .sort((a, b) => (b.x1 - b.x0) * (b.z1 - b.z0) - (a.x1 - a.x0) * (a.z1 - a.z0))
+    .slice(0, MODEL_MAX_TOPS)
+    .map(b => ({
+      y: round4(Math.max(b.y, 0)),
+      x: round4((b.x0 + b.x1) / 2),
+      z: round4((b.z0 + b.z1) / 2),
+      w: round4(b.x1 - b.x0),
+      d: round4(b.z1 - b.z0),
+    }))
+    .sort((a, b) => a.y - b.y)
+}
+
 // The shape in a glTF file, standing on the floor and centered, in meters.
 export function shapeOf(gltf: GLTF): Shape {
   const pieces = piecesOf(gltf)
@@ -338,7 +403,8 @@ export function shapeOf(gltf: GLTF): Shape {
   const mm = (value: number) => Math.max(Math.round(value * scale * 1000) / 1000, 0.01)
   const size: [number, number, number] = [mm(max[0] - min[0]), mm(max[2] - min[2]), mm(max[1] - min[1])]
   const triangles = parts.reduce((sum, p) => sum + p.index.length / 3, 0)
-  return { size, triangles, parts }
+  const tops = topsOf(pieces, (value, axis) => (value - middle[axis]) * scale)
+  return { size, triangles, parts, tops }
 }
 
 // Into the card config and back. Each corner is three 16 bit numbers across
@@ -412,7 +478,12 @@ function decodePart(part: ModelConfig['parts'][number], size: [number, number, n
 
 export function decodeShape(model: ModelConfig): Shape {
   const parts = model.parts.map(p => decodePart(p, model.size)).filter((p): p is ShapePart => !!p)
-  return { size: model.size, triangles: parts.reduce((sum, p) => sum + p.index.length / 3, 0), parts }
+  return {
+    size: model.size,
+    triangles: parts.reduce((sum, p) => sum + p.index.length / 3, 0),
+    parts,
+    tops: cleanTops(model.tops),
+  }
 }
 
 // A part ready to draw, shaded round across soft edges and sharp across

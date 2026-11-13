@@ -12,7 +12,10 @@
 // puts the sun at that elevation so a glow can be seen at night, `editor`
 // shows the editor instead of the card, `camera=x,y,z,tx,ty,tz` sets the
 // view, and `stretch=1.5,1,1` stretches every piece along its width, depth
-// and height, to see that a hinge stays a hinge on a stretched model.
+// and height, to see that a hinge stays a hinge on a stretched model, and
+// `ride=1` stands a table lamp on every top of a model that has any, to see
+// that each one is where its part is. `mount=wall` hangs every model on the
+// back wall.
 import { modelPreferredDomains } from '#/decoration/modelTags.ts'
 import { encodeShape, fetchGltf, shapeOf } from '#/scene/decor/modelShape.ts'
 import type { CardConfig, EntityState, HomeAssistant, ModelConfig } from '#/types.ts'
@@ -51,7 +54,16 @@ for (const [i, url] of files.entries()) {
   const shape = shapeOf(await fetchGltf(url))
   const id = `m${i}`
   const name = decodeURIComponent(url.split('/').pop() ?? id).replace(/\.glb$/i, '')
-  models[id] = { name, size: shape.size, triangles: shape.triangles, parts: encodeShape(shape) }
+  models[id] = {
+    name,
+    size: shape.size,
+    triangles: shape.triangles,
+    parts: encodeShape(shape),
+    ...(shape.tops.length > 0 && { tops: shape.tops }),
+    ...(params.get('mount') === 'wall' && { mount: 'wall' }),
+  }
+  const hung = models[id].mount === 'wall'
+  const y = hung ? 2.4 : 1.2
   const domain = modelPreferredDomains(models[id].parts)[0] ?? 'switch'
   const entity = `${domain}.${id}`
   const attributes: Record<string, unknown> = { friendly_name: name }
@@ -76,11 +88,25 @@ for (const [i, url] of files.entries()) {
     id: `piece_${id}`,
     kind: `model:${id}`,
     room: 'room',
-    position: [x, 1.2],
+    position: [x, y],
     rotation: 0,
     ...(params.has('stretch') && { params: { width: sw, depth: sd, height: sh } }),
   })
-  config.devices!.push({ entity_id: entity, room: 'room', position: [x, 1.2], decorations: [`piece_${id}`] })
+  config.devices!.push({ entity_id: entity, room: 'room', position: [x, y], decorations: [`piece_${id}`] })
+  // A lamp on each top, side by side, the highest top's naming no level.
+  if (params.get('ride') === '1')
+    for (const [n, top] of shape.tops.entries()) {
+      const along = top.x + ((n + 0.5) / shape.tops.length - 0.5) * top.w * 0.6
+      config.decorations!.push({
+        id: `rider_${id}_${n}`,
+        kind: 'light_table',
+        room: 'room',
+        position: [x + along * (sw / shape.size[0]), y - (hung ? sd / 2 : 0) - top.z * (sd / shape.size[1])],
+        on: `piece_${id}`,
+        ...(n < shape.tops.length - 1 && { level: n }),
+        params: { size: 0.14, height: 0.22 },
+      })
+    }
   x += w / 2 + 0.5
 }
 const width = Math.max(x + 0.1, 2.5)

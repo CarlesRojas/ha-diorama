@@ -6,7 +6,9 @@ rods and prisms, in meters, in Diorama's frame: x to the right, y up, z toward
 the front (the side that faces into the room). Parts and groups get node names
 with Diorama behavior tags, e.g. "Shade [glow]" or "Door [hinge y 90]", and a
 group with a motion gets its node origin at its pivot, so the patched Diorama
-importer can swing, slide, spin, light and show/hide them.
+importer can swing, slide, spin, light and show/hide them. A part with
+`top: true` is named "Board [top]", which makes its upper face a top other
+pieces can stand on: a table's top, each board of a shelf unit.
 
 Usage:
   python3 build_model.py spec.yaml -o out/            # .glb + preview + report
@@ -37,6 +39,7 @@ except ImportError:  # pragma: no cover
 MAX_TRIANGLES = 60000
 WARN_TRIANGLES = 20000
 MAX_PARTS = 16
+MAX_TOPS = 12
 FINISHES = {"matte", "fabric", "wood", "ceramic", "metal"}
 LOOKS = {"glow", "led", "on", "off"}
 MOTIONS = {"hinge", "slide", "spin"}
@@ -322,6 +325,7 @@ class MeshNode:
     F: np.ndarray
     color: str
     finish: str
+    top: bool = False  # its upper face is a top other pieces can stand on
 
 
 @dataclass
@@ -461,6 +465,7 @@ def build_tree(items: list, seg: int, path=""):
                 if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
                     raise ValueError(f"part '{label}': color must look like #a1b2c3")
                 mesh = MeshNode(f"{label} [{look}]" if look else label, label, V, F, color, finish)
+                mesh.top = bool(item.get("top", False))
                 if motion:
                     # A motion on a single part: wrap it in a group at its pivot.
                     if "pivot" not in item:
@@ -620,7 +625,8 @@ def write_glb(nodes, path: Path, model_name: str):
             return idx
         mesh_idx, tris = add_mesh(n, parent_origin)
         tri_total += tris
-        gltf["nodes"].append({"name": n.name, "mesh": mesh_idx})
+        # The top tag goes on the node alone, after any look the name carries.
+        gltf["nodes"].append({"name": f"{n.name} [top]" if n.top else n.name, "mesh": mesh_idx})
         return len(gltf["nodes"]) - 1
 
     zero = np.zeros(3)
@@ -719,6 +725,36 @@ def report(nodes, tri_total, spec, out_glb):
             signals.add("toggle")
         if p["motion"]:
             signals |= {"toggle", "level"}
+    # The tops as Diorama's importer reads them: the box round each still part
+    # tagged for it, seen from above, two at one height that touch being one.
+    boxes = []
+    for m, motion, _look, _pivot in meshes:
+        if not m.top:
+            continue
+        if motion:
+            warnings.append(f"top on '{tidy(m.label)}' is ignored: a part that moves cannot be stood on.")
+            continue
+        a, b = m.V.min(axis=0), m.V.max(axis=0)
+        box = [float(b[1]), float(a[0]), float(b[0]), float(a[2]), float(b[2])]
+        near = 0.005
+        for other in boxes:
+            if (abs(other[0] - box[0]) <= near and other[1] <= box[2] + near and box[1] <= other[2] + near
+                    and other[3] <= box[4] + near and box[3] <= other[4] + near):
+                other[0] = max(other[0], box[0])
+                other[1], other[2] = min(other[1], box[1]), max(other[2], box[2])
+                other[3], other[4] = min(other[3], box[3]), max(other[4], box[4])
+                break
+        else:
+            boxes.append(box)
+    tops = sorted(
+        ({"height_y": round(y - float(lo[1]), 3), "width_x": round(x1 - x0, 3), "depth_z": round(z1 - z0, 3)}
+         for y, x0, x1, z0, z1 in boxes),
+        key=lambda t: t["height_y"],
+    )
+    if len(tops) > MAX_TOPS:
+        warnings.append(f"{len(tops)} tops: Diorama keeps the {MAX_TOPS} widest.")
+    if tops and spec.get("mount") == "ceiling":
+        warnings.append("tops are ignored on a model that hangs from the ceiling.")
     return {
         "file": str(out_glb),
         "name": spec.get("name"),
@@ -728,6 +764,8 @@ def report(nodes, tri_total, spec, out_glb):
         "parts": list(parts.values()),
         "signals": sorted(signals),
         "bindable": bool(signals),
+        "tops": tops,
+        "support": bool(tops),
         "warnings": warnings,
     }, (lo, hi)
 

@@ -1,6 +1,6 @@
 # Beispiel: Kommode mit zwei Flügeltüren und einer Schublade. Bindbar an
 # cover.* (Türen und Schublade folgen der Position) oder an einen Schalter
-# (dann ganz auf / ganz zu).
+# (dann ganz auf / ganz zu). Die Platte ist eine Abstellfläche (top: true).
 name: Kommode
 mount: floor
 segments: 24
@@ -19,6 +19,7 @@ parts:
     at: [0, 0.8, 0]
     color: "#c8a57a"
     finish: wood
+    top: true  # Dinge lassen sich auf die Platte stellen
   # Vier Beine, über mirror an beiden Achsen gespiegelt
   - name: Bein
     shape: cylinder

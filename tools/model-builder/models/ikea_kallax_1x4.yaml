@@ -1,0 +1,52 @@
+# IKEA KALLAX Regal 1x4, weiß (Art. 002.758.48), liegend an der Wand hängend
+# Maße laut IKEA: 41,5 x 39 x 146,5 cm (hier liegend: 146,5 breit, 41,5 hoch, 39 tief).
+# Rahmenstärke (~3,85 cm), Bodenstärke (1,6 cm) und Fachmaß (33,5 cm) stehen nicht auf
+# der Produktseite, sondern sind aus den Gesamtmaßen abgeleitet:
+# 2 x 3,85 + 4 x 33,5 + 3 x 1,6 = 146,5.
+# Offen, keine Rückwand. Keine Entity-Bindung, aber Abstellfläche (top: true):
+# oben auf dem Regal und unten in den Fächern lassen sich Objekte platzieren.
+# Schwestermodell: ikea_kallax_1x4_ohne_mittelboden
+name: KALLAX Regal 1x4
+file: ikea_kallax_1x4
+mount: wall
+segments: 16
+parts:
+  # Rahmen: oben und unten durchgehend, Seiten dazwischen
+  - name: Rahmen
+    shape: box
+    size: [1.465, 0.0385, 0.39]
+    radius: 0.003
+    at: [0, 0, 0]
+    top: true            # Fachboden innen, 3,85 cm hoch
+    color: "#f2f0eb"
+    finish: matte
+  - name: Rahmen
+    shape: box
+    size: [1.465, 0.0385, 0.39]
+    radius: 0.003
+    at: [0, 0.3765, 0]
+    top: true            # Oberseite des Regals, 41,5 cm hoch
+    color: "#f2f0eb"
+    finish: matte
+  - name: Rahmen
+    shape: box
+    size: [0.0385, 0.338, 0.39]
+    at: [0.71325, 0.0385, 0]
+    color: "#f2f0eb"
+    finish: matte
+    mirror: x
+  # Trennböden links und rechts
+  - name: Boden
+    shape: box
+    size: [0.016, 0.338, 0.388]
+    at: [0.351, 0.0385, 0]
+    color: "#f2f0eb"
+    finish: matte
+    mirror: x
+  # Mittlerer Trennboden
+  - name: Boden
+    shape: box
+    size: [0.016, 0.338, 0.388]
+    at: [0, 0.0385, 0]
+    color: "#f2f0eb"
+    finish: matte
