@@ -70,7 +70,7 @@ type Props = {
   onRemove: (id: string) => void
   onBind: (id: string, entityId: string | null) => void
   onDeviceLevels: (entityId: string, levels: Record<string, string>) => void
-  onStandOn: (id: string, level: { on: string | null; floor: boolean }) => void
+  onStandOn: (id: string, level: { on: string | null; floor: boolean; level?: number }) => void
   // Moves a piece onto a top in its room, wherever it is now.
   onPutOn: (id: string, supportId: string) => void
   // The top whose name the pointer is over, or null once it leaves.

@@ -9,6 +9,10 @@ moves that section under the new version and uses it as the release notes.
 
 ## [Unreleased]
 
+### Added
+
+- Imported models can be stood on: a part named with the `[top]` tag, such as `Board [top]`, takes lamps and other pieces on its upper face like a table does, and a model with several, like a shelf unit, lets a piece step from board to board under Standing on.
+
 ## [1.10.0] - 2026-11-12
 
 ### Added

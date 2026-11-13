@@ -1,4 +1,4 @@
-import type { ModelLook, ModelMotion, ModelPart } from '#/types.ts'
+import type { ModelLook, ModelMotion, ModelPart, ModelTop } from '#/types.ts'
 import type { Signal } from '#/signals.ts'
 
 // What the parts of an imported model do with the device behind its piece.
@@ -14,6 +14,7 @@ import type { Signal } from '#/signals.ts'
 //   Door [hinge -y 110]   the other way round, further
 //   Drawer [slide z 0.4]  comes 40 cm out toward the front as it opens
 //   Rotor [spin y 1.5]    turns one and a half times a second while on
+//   Board [top]           other pieces can stand on its upper face
 //
 // A motion turns or moves the part round the origin of the node the tag is
 // on, which is where a hinge goes in Blender: set the object's origin on
@@ -26,6 +27,8 @@ import type { Signal } from '#/signals.ts'
 export type PartTags = {
   motion?: Omit<ModelMotion, 'pivot'>
   look?: ModelLook
+  // Its upper face is a top for other pieces to stand on.
+  top?: boolean
 }
 
 const AXES: Record<string, [number, number, number]> = {
@@ -65,6 +68,8 @@ export function parseTags(raw: string | undefined): PartTags {
     } else if (type === 'glow' || type === 'led' || type === 'on' || type === 'off') {
       if (out.look) continue
       out.look = type === 'glow' ? { type, output: Math.min(Math.max(number(args[0], 1), 0.05), 3) } : { type }
+    } else if (type === 'top') {
+      out.top = true
     }
   }
   return out
@@ -105,6 +110,23 @@ export function cleanLook(look: unknown): ModelLook | undefined {
   }
   if (l.type === 'led' || l.type === 'on' || l.type === 'off') return { type: l.type }
   return undefined
+}
+
+// The most tops a model keeps, the widest ones when it has more.
+export const MODEL_MAX_TOPS = 12
+
+// The tops of a model as read back from the card config, lowest first. A
+// hand edited config can hold anything, and a top that says nothing
+// sensible is left out.
+export function cleanTops(tops: unknown): ModelTop[] {
+  if (!Array.isArray(tops)) return []
+  const ok = (n: unknown): n is number => typeof n === 'number' && Number.isFinite(n)
+  return tops
+    .filter((t): t is ModelTop => !!t && typeof t === 'object' && [t.y, t.x, t.z, t.w, t.d].every(ok))
+    .filter(t => t.y >= 0 && t.w > 0 && t.d > 0)
+    .slice(0, MODEL_MAX_TOPS)
+    .map(t => ({ y: t.y, x: t.x, z: t.z, w: t.w, d: t.d }))
+    .sort((a, b) => a.y - b.y)
 }
 
 // What a model can show of a device, from what its parts do. A model whose

@@ -109,7 +109,13 @@ export async function importFiles(files: File[], models: Models): Promise<Import
   }
   checkTriangles(shape)
   const name = nameFrom(main.name)
-  const model: ModelConfig = { name, size: shape.size, triangles: shape.triangles, parts: encodeShape(shape) }
+  const model: ModelConfig = {
+    name,
+    size: shape.size,
+    triangles: shape.triangles,
+    parts: encodeShape(shape),
+    ...(shape.tops.length > 0 && { tops: shape.tops }),
+  }
   const bytes = modelBytes(model)
   if (bytes > MODEL_MAX_BYTES)
     throw new Error(
@@ -156,6 +162,7 @@ export async function importLink(link: string, models: Models): Promise<Imported
       ...(p.color && { color: p.color }),
       ...(p.finish && { finish: p.finish }),
     })),
+    ...(shape.tops.length > 0 && { tops: shape.tops }),
     url,
   }
   return { id: idFor(name, models), model }

@@ -184,6 +184,9 @@ export type DecorationConfig = {
   // Id of the item this one stands on, for example the table under a lamp.
   // Its height follows that item's top, and it moves when that item moves.
   on?: string
+  // Which of that item's tops it stands on, when the item has more than one,
+  // counted from the lowest as 0. The highest one without it.
+  level?: number
   // Shows its device's state and does not act on it: a click opens the
   // device's dialog in Home Assistant instead of switching it.
   show_only?: boolean
@@ -230,6 +233,9 @@ export type ModelConfig = {
   // kept here, `vertices` as three 16 bit numbers per corner across the
   // model's own box and `triangles` as indexes into them, both base64.
   parts: ModelPart[]
+  // The tops other pieces can stand on, lowest first, from the parts tagged
+  // `[top]` in the file. A model without one carries nothing.
+  tops?: ModelTop[]
   // A file to read the shape from instead, like one in /config/www, which
   // Home Assistant serves as /local/. The parts then only name the colors.
   url?: string
@@ -256,6 +262,12 @@ export type ModelMotion = {
 // a lamp gives. led shines the same but lights nothing. on shows the part
 // only while the device is on, off only while it is off.
 export type ModelLook = { type: 'glow' | 'led' | 'on' | 'off'; output?: number }
+
+// A top of an imported model that other pieces can stand on: the upper face
+// of a part tagged `[top]`, like `Board [top]`. In meters in the model's own
+// frame at its own size: `y` is how high it is, `x` and `z` its middle and
+// `w` and `d` how far it reaches along x and along z.
+export type ModelTop = { y: number; x: number; z: number; w: number; d: number }
 
 export type ModelPart = {
   name: string

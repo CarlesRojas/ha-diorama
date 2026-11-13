@@ -7,7 +7,7 @@ import {
   sofaArmWidth,
   sofaSeatRange,
 } from '#/scene/decor/sofaSpecs.ts'
-import { isModelKind, modelDomains, modelKind } from '#/decoration/models.ts'
+import { isModelKind, modelDomains, modelKind, modelOf, modelTops } from '#/decoration/models.ts'
 import type { Signal } from '#/signals.ts'
 import { CEILING_HEIGHT_M, LIGHT_BASE_COLOR, LIGHT_SHADE_COLOR, SCANDI, SCREEN_OFF_COLOR } from '#/theme.ts'
 
@@ -3767,7 +3767,8 @@ const SURFACE_TOPS: Record<string, string | number | Record<string, number>> = {
 // fight over which one is drawn. The counter cuts the holes a sink needs.
 const BUILT_IN: Record<string, number> = { hob: 0, kitchen_sink: 0 }
 
-export const isSupport = (kind: DecorationKind) => kind.id in SURFACE_TOPS
+// An imported model is one when a part of it is tagged as a top.
+export const isSupport = (kind: DecorationKind) => kind.id in SURFACE_TOPS || modelTops(kind.id).length > 0
 // Anything with a height of its own to stand at is meant to stand on something.
 export const canRide = (kind: DecorationKind) => kind.params.some(p => p.id === 'lift')
 export const isBuiltIn = (kind: DecorationKind) => kind.id in BUILT_IN
@@ -3790,4 +3791,36 @@ export function surfaceRect(
 ): [number, number] {
   const [w, d] = footprint(kind, params, variant)
   return [Math.max(w - 0.1, w * 0.4), Math.max(d - 0.1, d * 0.4)]
+}
+
+// One top of an item: how high it is above the item's own base, where its
+// middle is from the item's position in the item's own frame on the plan,
+// and the usable width and depth round that.
+export type Top = { height: number; x: number; y: number; w: number; d: number }
+
+// Every top of an item, lowest first. A catalog piece has the one. An
+// imported model has one for each part of it tagged as a top, stretched
+// with the model, so a shelf unit can be stood on board by board.
+export function surfaceTops(kind: DecorationKind, params: Record<string, number> | undefined, variant?: string): Top[] {
+  if (!isSupport(kind)) return []
+  // A piece on a wall reaches out from the wall line into the room, which
+  // is the way its local y runs down, rather than sitting round the line.
+  const out = kind.mount === 'wall' ? footprint(kind, params, variant)[1] / 2 : 0
+  const model = isModelKind(kind) ? modelOf(kind.id) : undefined
+  if (!model) {
+    const [w, d] = surfaceRect(kind, params, variant)
+    return [{ height: surfaceTop(kind, params, variant), x: 0, y: -out, w, d }]
+  }
+  const scale = (id: string, own: number) => paramValue(kind, params, id, variant) / own
+  const sx = scale('width', model.size[0])
+  const sz = scale('depth', model.size[1])
+  const sy = scale('height', model.size[2])
+  // The model's z runs toward its front, which is down its y on the plan.
+  return modelTops(kind.id).map(top => ({
+    height: top.y * sy,
+    x: top.x * sx,
+    y: -top.z * sz - out,
+    w: Math.max(top.w * sx - 0.1, top.w * sx * 0.4),
+    d: Math.max(top.d * sz - 0.1, top.d * sz * 0.4),
+  }))
 }
