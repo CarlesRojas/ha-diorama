@@ -5,6 +5,7 @@ import { EDITOR_SELECTED_COLOR } from '#/theme.ts'
 import { FOCUS_FADE_S } from '#/constants.ts'
 import { redrawShadows, showOnly } from '#/scene/focus.ts'
 import { setComposed } from '#/scene/warm.ts'
+import { EdgeFadeEffect } from '#/scene/edgeFade.ts'
 import { useFrame, useThree } from '@react-three/fiber'
 import { N8AOPostPass } from 'n8ao'
 import {
@@ -87,6 +88,8 @@ type Props = {
   // The room that stands alone, the rest of the home faded away. The editor
   // never passes one.
   focus?: string | null
+  // Fades the picture away towards the edges, see edgeFade.ts.
+  edgeFade?: boolean
 }
 
 type Pipeline = {
@@ -98,7 +101,7 @@ type Pipeline = {
   paint: Material
 }
 
-export default function Effects({ selected, focus = null }: Props) {
+export default function Effects({ selected, focus = null, edgeFade = false }: Props) {
   const gl = useThree(state => state.gl)
   const scene = useThree(state => state.scene)
   const camera = useThree(state => state.camera)
@@ -144,6 +147,7 @@ export default function Effects({ selected, focus = null }: Props) {
       ...(outline ? [outline] : []),
       new SMAAEffect({ preset: SMAAPreset.HIGH }),
       new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC }),
+      ...(edgeFade ? [new EdgeFadeEffect()] : []),
     )
     // The picture replaces a share of what the screen holds. The share is
     // all of it but during a fade, and it is set up this way from the start
@@ -174,13 +178,13 @@ export default function Effects({ selected, focus = null }: Props) {
       // The composer disposes of its passes, and they of their effects.
       composer.dispose()
     }
-  }, [gl, scene, camera, outlined])
+  }, [gl, scene, camera, outlined, edgeFade])
 
   useEffect(() => {
     // The composer sizes its buffers from the canvas, which follows the
     // pixel ratio, and this only tells it the canvas has changed.
     pipeline.current?.composer.setSize(size.width, size.height, false)
-  }, [gl, scene, camera, outlined, size.width, size.height, dpr])
+  }, [gl, scene, camera, outlined, edgeFade, size.width, size.height, dpr])
 
   // Frames are drawn on request, and a new pick or a new size is one.
   useEffect(() => {

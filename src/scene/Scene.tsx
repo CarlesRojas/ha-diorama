@@ -80,6 +80,8 @@ type Props = {
   // one does in the card.
   stairs?: ReadonlySet<string>
   onStairs?: (id: string) => void
+  // Fades the picture away towards the edges, as the card does.
+  edgeFade?: boolean
 }
 
 export default function Scene({
@@ -102,6 +104,7 @@ export default function Scene({
   stairs,
   onStairs,
   floor = null,
+  edgeFade = false,
 }: Props) {
   const rooms = config.rooms ?? []
   const radius = config.radius ?? ROOM_CORNER_RADIUS_M
@@ -201,7 +204,7 @@ export default function Scene({
         {/* The frame is finished from a buffer: shaded where things meet,
           tone mapped, softly darkened at the corners, and in the editor with
           the picked thing outlined. */}
-        <Effects selected={selected} focus={focus} />
+        <Effects selected={selected} focus={focus} edgeFade={edgeFade} />
         {rooms.map((room, i) => (
           <Room
             key={room.id}
