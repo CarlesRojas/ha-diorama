@@ -15,6 +15,7 @@ import CameraRig, { type CameraHandle } from '#/scene/CameraRig.tsx'
 import Cleanup from '#/scene/cleanup.tsx'
 import Devices from '#/scene/Devices.tsx'
 import Effects from '#/scene/Effects.tsx'
+import { calmEvents } from '#/scene/events.ts'
 import Merged from '#/scene/Merged.tsx'
 import Passages from '#/scene/Passages.tsx'
 import PickFallback from '#/scene/pick.tsx'
@@ -132,6 +133,9 @@ export default function Scene({
         shadows={{ type: PCFShadowMap }}
         // A frame is drawn only when something has changed, see live.ts.
         frameloop={paused ? 'never' : 'demand'}
+        // The pointer is looked for under the moves at most once a frame,
+        // and not at all while a press turns the camera, see events.ts.
+        events={calmEvents}
         dpr={[1, 2]}
         // The frame is finished from a buffer and smoothed there, so the
         // screen's own smoothing would only cost.
