@@ -16,6 +16,8 @@ moves that section under the new version and uses it as the release notes.
 ### Fixed
 
 - A floor no longer shows a jagged notch at its corner when another room's corner lands right next to it.
+- The 3D view is much smoother and answers at once, most of all on a tablet or a phone: flying into a room and back, switching a lamp and pressing a piece no longer stutter or lag. Only the four brightest lamps now cast a shadow, two on a phone or a tablet.
+- A tile that turns something on or off, like a light or a switch, shows the new state the moment it is tapped, instead of waiting for Home Assistant to answer.
 
 ## [1.9.0] - 2026-11-11
 

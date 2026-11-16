@@ -3,7 +3,6 @@ import { aspectRatioCss } from '#/lib/aspect.ts'
 import { useBackToHome } from '#/lib/backButton.ts'
 import { useDevSettings } from '#/lib/devSettings.ts'
 import { cn } from '#/lib/utils.ts'
-import { EDGE_FADE_MASK } from '#/theme.ts'
 import arrowLeft from '@phosphor-icons/core/assets/bold/arrow-left-bold.svg?raw'
 import { useEditorOpen } from '#/lib/editorOpen.ts'
 import { useEmptyClick } from '#/lib/emptyClick.ts'
@@ -296,7 +295,7 @@ export default function Card({ hass, config, panel = false, preview = false }: P
             <>
               <div
                 className={cn('absolute inset-0 transition-opacity ease-in-out', fading ? 'opacity-0' : 'opacity-100')}
-                style={{ mask: EDGE_FADE_MASK, WebkitMask: EDGE_FADE_MASK, transitionDuration: `${FLOOR_FADE_MS}ms` }}
+                style={{ transitionDuration: `${FLOOR_FADE_MS}ms` }}
               >
                 <Scene
                   hass={hass}
@@ -316,6 +315,7 @@ export default function Card({ hass, config, panel = false, preview = false }: P
                   roomFirst={roomFirst}
                   wheelZoom={panel}
                   fpsTicks={fps ? fpsTicks : undefined}
+                  edgeFade
                 />
               </div>
               {fps && <FpsBadge ticks={fpsTicks} />}

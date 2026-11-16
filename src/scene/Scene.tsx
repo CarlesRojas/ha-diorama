@@ -10,16 +10,19 @@ import {
 import { cn } from '#/lib/utils.ts'
 import { ROOM_CORNER_RADIUS_M, ROOM_GAP_M } from '#/theme.ts'
 import Adaptive from '#/scene/Adaptive.tsx'
+import Bvh from '#/scene/bvh.tsx'
 import CameraRig, { type CameraHandle } from '#/scene/CameraRig.tsx'
 import Cleanup from '#/scene/cleanup.tsx'
 import Devices from '#/scene/Devices.tsx'
 import Effects from '#/scene/Effects.tsx'
+import { calmEvents } from '#/scene/events.ts'
 import Merged from '#/scene/Merged.tsx'
 import Passages from '#/scene/Passages.tsx'
 import PickFallback from '#/scene/pick.tsx'
 import Room from '#/scene/Room.tsx'
 import Shadows from '#/scene/shadows.tsx'
 import Sky, { type SkyMode } from '#/scene/Sky.tsx'
+import { Precompile } from '#/scene/warm.ts'
 import type { TryStates } from '#/editor/tryState.ts'
 import { FpsTicker, type FpsTicks } from '#/scene/FpsMeter.tsx'
 import { occupied } from '#/scene/presence.ts'
@@ -77,6 +80,8 @@ type Props = {
   // one does in the card.
   stairs?: ReadonlySet<string>
   onStairs?: (id: string) => void
+  // Fades the picture away towards the edges, as the card does.
+  edgeFade?: boolean
 }
 
 export default function Scene({
@@ -99,6 +104,7 @@ export default function Scene({
   stairs,
   onStairs,
   floor = null,
+  edgeFade = false,
 }: Props) {
   const rooms = config.rooms ?? []
   const radius = config.radius ?? ROOM_CORNER_RADIUS_M
@@ -131,6 +137,9 @@ export default function Scene({
         shadows={{ type: PCFShadowMap }}
         // A frame is drawn only when something has changed, see live.ts.
         frameloop={paused ? 'never' : 'demand'}
+        // The pointer is looked for under the moves at most once a frame,
+        // and not at all while a press turns the camera, see events.ts.
+        events={calmEvents}
         dpr={[1, 2]}
         // The frame is finished from a buffer and smoothed there, so the
         // screen's own smoothing would only cost.
@@ -154,6 +163,8 @@ export default function Scene({
         <Shadows />
         <Cleanup />
         <Adaptive />
+        <Bvh />
+        <Precompile watch={config} />
         {fpsTicks && <FpsTicker ticks={fpsTicks} />}
         <CameraRig
           rooms={rooms}
@@ -193,7 +204,7 @@ export default function Scene({
         {/* The frame is finished from a buffer: shaded where things meet,
           tone mapped, softly darkened at the corners, and in the editor with
           the picked thing outlined. */}
-        <Effects selected={selected} focus={focus} />
+        <Effects selected={selected} focus={focus} edgeFade={edgeFade} />
         {rooms.map((room, i) => (
           <Room
             key={room.id}

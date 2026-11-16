@@ -31,6 +31,16 @@ const EASY = 1.15
 const PATIENCE = 3
 const MAX_UPS = 2
 
+// While the camera moves, a flight into a room, a turn, a zoom, the picture
+// is drawn a step coarser on a screen dense enough to hide it: a moving
+// picture shows its pixels far less than a still one, and on a tablet this
+// is a third of the pixels to fill on the very frames that stuttered. The
+// still picture is as fine as ever: it comes back as soon as the camera has
+// stood still a moment. A screen of ordinary density is left alone.
+const MOTION_SHARE = 0.625
+const MOTION_MIN = 1.25
+const STILL_MS = 180
+
 export default function Adaptive() {
   const setDpr = useThree(state => state.setDpr)
   const invalidate = useThree(state => state.invalidate)
@@ -41,6 +51,19 @@ export default function Adaptive() {
   const fastest = useRef(Infinity)
   const easy = useRef(0)
   const ups = useRef(0)
+  const view = useRef<number[]>([])
+  const coarse = useRef(false)
+  const restTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => () => clearTimeout(restTimer.current), [])
+  // The density for the step the card is at, still or in motion.
+  const densityOf = (moving: boolean) => {
+    const still = steps.current[level.current] ?? 1
+    return moving && still >= MOTION_MIN * 1.2 ? Math.max(MOTION_MIN, still * MOTION_SHARE) : still
+  }
+  const apply = (moving: boolean) => {
+    coarse.current = moving
+    setDpr(densityOf(moving))
+  }
 
   useEffect(() => {
     const max = Math.min(window.devicePixelRatio || 1, 2)
@@ -50,6 +73,22 @@ export default function Adaptive() {
   }, [])
 
   useFrame(state => {
+    // Whether the camera moved since the last tick.
+    const m = state.camera.matrixWorld.elements
+    const seen = view.current
+    let moved = seen.length !== 16
+    for (let i = 0; i < 16 && !moved; i++) if (seen[i] !== m[i]) moved = true
+    if (moved) {
+      view.current = Array.from(m)
+      if (!coarse.current && densityOf(true) !== densityOf(false)) apply(true)
+      clearTimeout(restTimer.current)
+      // Back to the fine picture once it has stood still, with a frame to show it.
+      restTimer.current = setTimeout(() => {
+        if (!coarse.current) return
+        apply(false)
+        invalidate()
+      }, STILL_MS)
+    }
     // Only the frames drawn are timed. The ticks between them cost nothing.
     if (!due(state.clock)) return
     const now = performance.now()
@@ -69,14 +108,14 @@ export default function Adaptive() {
     if (mean > fastest.current * LATE && at > 0) {
       level.current = at - 1
       easy.current = 0
-      setDpr(steps.current[level.current])
+      setDpr(densityOf(coarse.current))
       invalidate()
     } else if (mean < fastest.current * EASY && at < steps.current.length - 1 && ups.current < MAX_UPS) {
       if (++easy.current < PATIENCE) return
       easy.current = 0
       ups.current++
       level.current = at + 1
-      setDpr(steps.current[level.current])
+      setDpr(densityOf(coarse.current))
       invalidate()
     } else easy.current = 0
   })

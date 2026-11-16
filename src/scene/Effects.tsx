@@ -5,6 +5,7 @@ import { EDITOR_SELECTED_COLOR } from '#/theme.ts'
 import { FOCUS_FADE_S } from '#/constants.ts'
 import { redrawShadows, showOnly } from '#/scene/focus.ts'
 import { setComposed } from '#/scene/warm.ts'
+import { EdgeFadeEffect } from '#/scene/edgeFade.ts'
 import { useFrame, useThree } from '@react-three/fiber'
 import { N8AOPostPass } from 'n8ao'
 import {
@@ -87,6 +88,8 @@ type Props = {
   // The room that stands alone, the rest of the home faded away. The editor
   // never passes one.
   focus?: string | null
+  // Fades the picture away towards the edges, see edgeFade.ts.
+  edgeFade?: boolean
 }
 
 type Pipeline = {
@@ -98,7 +101,7 @@ type Pipeline = {
   paint: Material
 }
 
-export default function Effects({ selected, focus = null }: Props) {
+export default function Effects({ selected, focus = null, edgeFade = false }: Props) {
   const gl = useThree(state => state.gl)
   const scene = useThree(state => state.scene)
   const camera = useThree(state => state.camera)
@@ -144,6 +147,7 @@ export default function Effects({ selected, focus = null }: Props) {
       ...(outline ? [outline] : []),
       new SMAAEffect({ preset: SMAAPreset.HIGH }),
       new ToneMappingEffect({ mode: ToneMappingMode.ACES_FILMIC }),
+      ...(edgeFade ? [new EdgeFadeEffect()] : []),
     )
     // The picture replaces a share of what the screen holds. The share is
     // all of it but during a fade, and it is set up this way from the start
@@ -174,13 +178,13 @@ export default function Effects({ selected, focus = null }: Props) {
       // The composer disposes of its passes, and they of their effects.
       composer.dispose()
     }
-  }, [gl, scene, camera, outlined])
+  }, [gl, scene, camera, outlined, edgeFade])
 
   useEffect(() => {
     // The composer sizes its buffers from the canvas, which follows the
     // pixel ratio, and this only tells it the canvas has changed.
     pipeline.current?.composer.setSize(size.width, size.height, false)
-  }, [gl, scene, camera, outlined, size.width, size.height, dpr])
+  }, [gl, scene, camera, outlined, edgeFade, size.width, size.height, dpr])
 
   // Frames are drawn on request, and a new pick or a new size is one.
   useEffect(() => {
@@ -231,10 +235,16 @@ export default function Effects({ selected, focus = null }: Props) {
       if (room !== null || cut.current !== null) showOnly(scene, room)
       cut.current = room
     }
-    const draw = (room: string | null, share: number) => {
+    // Only the picture that comes draws the shadows, once, for the room it
+    // shows. The one that goes is drawn with the same maps. Each picture
+    // drawing its own had every map, the sun's and every lamp's six sides,
+    // drawn twice over on every frame of the fade.
+    const draw = (room: string | null, share: number, shade: boolean) => {
       cutTo(room)
-      if (shaded.current !== room) redrawShadows(scene)
-      shaded.current = room
+      if (shade && shaded.current !== room) {
+        redrawShadows(scene)
+        shaded.current = room
+      }
       run.paint.blendAlpha = share
       run.composer.render(delta)
     }
@@ -258,12 +268,12 @@ export default function Effects({ selected, focus = null }: Props) {
       return
     }
     const t = faded.current
-    if (t === 1) draw(to.current, 1)
+    if (t === 1) draw(to.current, 1, true)
     else {
       // The one picture goes as the other comes, and the one that comes is
       // drawn last, so it is the one that takes presses from the start.
-      draw(from.current, 1)
-      draw(to.current, t * t * (3 - 2 * t))
+      draw(from.current, 1, false)
+      draw(to.current, t * t * (3 - 2 * t), true)
       run.paint.blendAlpha = 1
     }
     // A priority above zero takes the drawing over from the default loop,
