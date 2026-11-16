@@ -17,6 +17,7 @@ moves that section under the new version and uses it as the release notes.
 
 - A floor no longer shows a jagged notch at its corner when another room's corner lands right next to it.
 - Flying into a room and back to the whole home no longer stutters at night, when lamps with shadows are on.
+- A tile that turns something on or off, like a light or a switch, shows the new state the moment it is tapped, instead of waiting for Home Assistant to answer.
 
 ## [1.9.0] - 2026-11-11
 

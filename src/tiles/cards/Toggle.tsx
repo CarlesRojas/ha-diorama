@@ -7,6 +7,8 @@ import { dims, inWhite, rgb } from '#/tiles/features/light.tsx'
 import { membersOn, numberOf, supports } from '#/tiles/features/parts.tsx'
 import type { TileConfig } from '#/tiles/host.tsx'
 import { Tile } from '#/tiles/Tile.tsx'
+import { useGuess } from '#/tiles/guess.ts'
+import { useState } from 'react'
 
 type Props = { env: TileEnv; config: TileConfig }
 
@@ -32,12 +34,18 @@ export default function Toggle({ env, config }: Props) {
   const domain = config.entity!.split('.')[0]
   const valve = domain === 'valve'
   // A player is on whatever it is doing, playing, paused or idle.
-  const on = valve
+  const real = valve
     ? entity?.state === 'open' || entity?.state === 'opening'
     : domain === 'media_player'
       ? !!entity && !OFF.includes(entity.state)
       : entity?.state === 'on'
+  // A tap shows its outcome at once, see guess.ts.
+  const [on, guess] = useGuess(real, entity)
   const brightness = entity?.attributes.brightness
+  // The brightness a light had last time it was on, for one a tap turns on
+  // before Home Assistant says how bright it came on.
+  const [lastBrightness, setLastBrightness] = useState(255)
+  if (typeof brightness === 'number' && brightness !== lastBrightness) setLastBrightness(brightness)
   const percentage = numberOf(entity, 'percentage')
   // A group that is on says how many of its members are.
   const members = membersOn(env.hass, entity)
@@ -87,7 +95,10 @@ export default function Toggle({ env, config }: Props) {
         ? 'var(--_accent)'
         : 'var(--_accent-light)'
   const unavailable = !entity || entity.state === 'unavailable' || entity.state === 'unknown'
-  const toggle = () => callService(env.hass, `${domain}.toggle`, { entity_id: config.entity })
+  const toggle = () => {
+    guess(!on)
+    return callService(env.hass, `${domain}.toggle`, { entity_id: config.entity })
+  }
   const { feature: _, ...plain } = config
   // Two taps only turn it on or off, over any control it was set to have.
   if (config.confirm)
@@ -96,7 +107,7 @@ export default function Toggle({ env, config }: Props) {
         env={env}
         config={plain}
         entity={entity}
-        on={on}
+        on={real}
         role="switch"
         accent={accent}
         glow={glow}
@@ -119,7 +130,7 @@ export default function Toggle({ env, config }: Props) {
         env={env}
         config={plain}
         entity={entity}
-        value={on ? Math.max(1, Math.round(((typeof brightness === 'number' ? brightness : 255) / 255) * 100)) : 0}
+        value={on ? Math.max(1, Math.round(((typeof brightness === 'number' ? brightness : lastBrightness) / 255) * 100)) : 0}
         accent={accent}
         glow={glow}
         onTap={toggle}
