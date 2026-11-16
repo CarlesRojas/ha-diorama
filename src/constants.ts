@@ -65,12 +65,17 @@ export const SUN_SHADOW_RADIUS = 2.5
 // among. Each one costs six shadow renders, so only the first few get them.
 export const LAMP_SHADOW_MAP_PX = 512
 export const LAMP_SHADOW_RADIUS = 2
-// Every shadowed lamp is looked up in every pixel drawn, which a phone or
-// a tablet can afford fewer of. Each one also takes a texture slot, and a
-// pixel has sixteen: with the sun, a surface's two maps and the two the
-// light strips need, ten lamps leave one to spare.
-export const MAX_SHADOW_LAMPS = 10
-export const MAX_SHADOW_LAMPS_TOUCH = 6
+// Every shadowed lamp is looked up in every pixel drawn, whether that lamp
+// reaches the pixel or not, and its map is the scene drawn six times over.
+// So only the brightest few lamps cast: four on a computer, two on a phone
+// or a tablet. A home lit by more than that still shades round the lamps
+// that cast, and the fainter ones light without a shadow, which at this
+// scale reads the same.
+export const MAX_SHADOW_LAMPS = 4
+export const MAX_SHADOW_LAMPS_TOUCH = 2
+// How far a lamp's shadow reaches. Past this its light has faded too far
+// for a shadow to show, and every face of its map draws less of the home.
+export const LAMP_SHADOW_REACH_M = 6
 // Frames a second for what moves on its own, a fan, a screen, a flame, while
 // nothing else is moving. Enough to read as motion, at a quarter of the work.
 // A camera moving or a light fading still draws at the full rate.

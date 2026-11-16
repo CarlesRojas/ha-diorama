@@ -13,7 +13,7 @@ import TableLamp from '#/scene/decor/TableLamps.tsx'
 import { TABLE_LAMPS } from '#/scene/decor/tableLampSpecs.ts'
 import WallLamp from '#/scene/decor/WallLamps.tsx'
 import { WALL_LAMPS } from '#/scene/decor/wallLampSpecs.ts'
-import { LAMP_SHADOW_MAP_PX, LAMP_SHADOW_RADIUS } from '#/constants.ts'
+import { LAMP_SHADOW_MAP_PX, LAMP_SHADOW_RADIUS, LAMP_SHADOW_REACH_M } from '#/constants.ts'
 import { CEILING_HEIGHT_M, LAMP_KEY_SHARE, LAMP_OUTPUT, LAMP_THROUGH_SHARE, LIGHT_POINT_INTENSITY } from '#/theme.ts'
 import type { DecorationConfig } from '#/types.ts'
 
@@ -125,7 +125,7 @@ function Glow({
         shadow-bias={-0.0012}
         shadow-normalBias={0.008}
         shadow-camera-near={0.05}
-        shadow-camera-far={9}
+        shadow-camera-far={LAMP_SHADOW_REACH_M}
       />
       {/* What comes through the shade itself. Parchment and opal glass are
           not walls: they glow, so this part reaches past the shade and casts
