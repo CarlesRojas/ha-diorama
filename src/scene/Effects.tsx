@@ -231,10 +231,16 @@ export default function Effects({ selected, focus = null }: Props) {
       if (room !== null || cut.current !== null) showOnly(scene, room)
       cut.current = room
     }
-    const draw = (room: string | null, share: number) => {
+    // Only the picture that comes draws the shadows, once, for the room it
+    // shows. The one that goes is drawn with the same maps. Each picture
+    // drawing its own had every map, the sun's and every lamp's six sides,
+    // drawn twice over on every frame of the fade.
+    const draw = (room: string | null, share: number, shade: boolean) => {
       cutTo(room)
-      if (shaded.current !== room) redrawShadows(scene)
-      shaded.current = room
+      if (shade && shaded.current !== room) {
+        redrawShadows(scene)
+        shaded.current = room
+      }
       run.paint.blendAlpha = share
       run.composer.render(delta)
     }
@@ -258,12 +264,12 @@ export default function Effects({ selected, focus = null }: Props) {
       return
     }
     const t = faded.current
-    if (t === 1) draw(to.current, 1)
+    if (t === 1) draw(to.current, 1, true)
     else {
       // The one picture goes as the other comes, and the one that comes is
       // drawn last, so it is the one that takes presses from the start.
-      draw(from.current, 1)
-      draw(to.current, t * t * (3 - 2 * t))
+      draw(from.current, 1, false)
+      draw(to.current, t * t * (3 - 2 * t), true)
       run.paint.blendAlpha = 1
     }
     // A priority above zero takes the drawing over from the default loop,
