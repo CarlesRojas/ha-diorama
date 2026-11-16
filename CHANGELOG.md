@@ -9,6 +9,8 @@ moves that section under the new version and uses it as the release notes.
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-16
+
 ### Added
 
 - A home of several floors can offer an All floors button above its floor switch, turned on in the card's new Floors settings, that shows every floor at once, one over the other, and a click on a room goes to its floor. The stairs on a floor that climb to the next one now all keep the same height, while a few steps up to a raised floor keep their own.
@@ -737,7 +739,8 @@ moves that section under the new version and uses it as the release notes.
 
 ### Changed
 
-[Unreleased]: https://github.com/CarlesRojas/ha-diorama/compare/v1.9.0...HEAD
+[Unreleased]: https://github.com/CarlesRojas/ha-diorama/compare/v1.10.0...HEAD
+[1.10.0]: https://github.com/CarlesRojas/ha-diorama/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/CarlesRojas/ha-diorama/compare/v1.8.29...v1.9.0
 [1.8.29]: https://github.com/CarlesRojas/ha-diorama/compare/v1.8.28...v1.8.29
 [1.8.28]: https://github.com/CarlesRojas/ha-diorama/compare/v1.8.27...v1.8.28
