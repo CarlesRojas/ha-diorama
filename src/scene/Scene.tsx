@@ -22,6 +22,7 @@ import PickFallback from '#/scene/pick.tsx'
 import Room from '#/scene/Room.tsx'
 import Shadows from '#/scene/shadows.tsx'
 import Sky, { type SkyMode } from '#/scene/Sky.tsx'
+import { Precompile } from '#/scene/warm.ts'
 import type { TryStates } from '#/editor/tryState.ts'
 import { FpsTicker, type FpsTicks } from '#/scene/FpsMeter.tsx'
 import { occupied } from '#/scene/presence.ts'
@@ -160,6 +161,7 @@ export default function Scene({
         <Cleanup />
         <Adaptive />
         <Bvh />
+        <Precompile watch={config} />
         {fpsTicks && <FpsTicker ticks={fpsTicks} />}
         <CameraRig
           rooms={rooms}

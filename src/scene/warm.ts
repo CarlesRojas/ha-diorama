@@ -270,3 +270,33 @@ export function useWarmed(target: boolean, set: (on: boolean) => void): boolean 
   }, [target, shown, warmUp])
   return shown
 }
+
+// How long after the scene changes its shaders are built ahead, so the
+// models have loaded by then.
+const AHEAD_OF_SHOWING_MS = 1200
+
+// Builds, in the background, the shaders of whatever the scene holds but
+// does not draw yet: the rest of a room's things a focused view leaves
+// out, the signs that lead out of a room, which only show around it. Three
+// builds a shader the first time it draws something, and with every lamp
+// of the home in it a single new shader took most of a second on a tablet,
+// so flying into a room stalled on its very first frame. Asked again
+// whenever `key` changes, as the plan does.
+export function Precompile({ watch }: { watch: unknown }) {
+  const warmUp = useWarm()
+  const key = useRef({})
+  useEffect(() => {
+    const timer = setTimeout(
+      () =>
+        warmUp(key.current, {
+          apply: () => {},
+          revert: () => {},
+          commit: () => {},
+          alone: true,
+        }),
+      AHEAD_OF_SHOWING_MS,
+    )
+    return () => clearTimeout(timer)
+  }, [watch, warmUp])
+  return null
+}
