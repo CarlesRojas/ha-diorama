@@ -111,7 +111,9 @@ function plainPaint(mesh: Mesh): MeshStandardMaterial | null {
     return null
   if (m.emissiveIntensity > 0 && (m.emissive.r > 0 || m.emissive.g > 0 || m.emissive.b > 0)) return null
   const geometry = mesh.geometry
-  if (!geometry.attributes.position || geometry.groups.length > 0) return null
+  // Groups only split a shape among several materials. With one, as here,
+  // three draws the whole of it regardless, and so does the merge.
+  if (!geometry.attributes.position) return null
   if ((geometry as { isInstancedBufferGeometry?: boolean }).isInstancedBufferGeometry) return null
   if (geometry.drawRange.start !== 0 || geometry.drawRange.count !== Infinity) return null
   return m
