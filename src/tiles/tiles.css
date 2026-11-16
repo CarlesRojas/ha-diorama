@@ -128,6 +128,23 @@
   color: var(--_text-active);
 }
 
+/* The frosted glass is the costliest thing on a dashboard to draw: the
+   page behind every tile is blurred again whenever anything over it moves,
+   a tile pressed or a list scrolled. A tile that is on is all but opaque,
+   so its blur showed nothing and is left out. A phone or a tablet blurs
+   half as far, which the glass still reads as, unless the theme sets its
+   own blur. */
+.dio-tile[data-active] {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+@media (pointer: coarse) {
+  :host {
+    --_blur: var(--dio-tile-blur, var(--fp-tile-blur, 12px));
+  }
+}
+
 /* A button lights up at once when pressed and a moment later fades slowly
    back to off. */
 .dio-tile[data-fading] {
