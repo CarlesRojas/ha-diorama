@@ -1,5 +1,5 @@
 import { entityArea } from '#/devices/catalog.ts'
-import { injectProperties, ReactHost } from '#/host.tsx'
+import { addStyles, injectProperties, ReactHost } from '#/host.tsx'
 import { onRoomFilter, roomFilter } from '#/lib/roomFilter.ts'
 import type { ActionConfig } from '#/tiles/actions.ts'
 import { isWide, tileRows } from '#/tiles/features/index.tsx'
@@ -139,9 +139,7 @@ export abstract class TileHost<C extends TileConfig> extends ReactHost<C> {
     super()
     injectFonts()
     injectProperties(tilesCss, 'diorama-tiles-properties')
-    const style = document.createElement('style')
-    style.textContent = tilesCss
-    this.shadowRoot!.appendChild(style)
+    addStyles(this.shadowRoot!, tilesCss)
   }
 
   setConfig(config: C) {

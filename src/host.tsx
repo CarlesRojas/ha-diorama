@@ -30,6 +30,28 @@ export function injectProperties(css = styles, id = PROPERTIES_ID) {
   document.head.appendChild(style)
 }
 
+// One sheet per stylesheet for the whole page, shared by the shadow root of
+// every card and tile, rather than a style element in each that the browser
+// parses and keeps apart. A dashboard of forty tiles parsed the tiles'
+// styles forty times over as it opened. A browser too old to share sheets
+// gets its own copy, as before.
+const sheets = new Map<string, CSSStyleSheet>()
+export function addStyles(root: ShadowRoot, css: string) {
+  if ('adoptedStyleSheets' in root && typeof CSSStyleSheet === 'function' && 'replaceSync' in CSSStyleSheet.prototype) {
+    let sheet = sheets.get(css)
+    if (!sheet) {
+      sheet = new CSSStyleSheet()
+      sheet.replaceSync(css)
+      sheets.set(css, sheet)
+    }
+    root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet]
+    return
+  }
+  const style = document.createElement('style')
+  style.textContent = css
+  root.appendChild(style)
+}
+
 // Trees of cards Home Assistant has just thrown away, by a key the card
 // gives, kept a while so a card built again in their place can take them
 // over instead of building its own from nothing.
@@ -53,9 +75,7 @@ export abstract class ReactHost<Config> extends HTMLElement {
     injectFonts()
     injectProperties()
     const shadow = this.attachShadow({ mode: 'open' })
-    const style = document.createElement('style')
-    style.textContent = styles
-    shadow.appendChild(style)
+    addStyles(shadow, styles)
     this.mount = document.createElement('div')
     this.mount.style.height = '100%'
     shadow.appendChild(this.mount)
