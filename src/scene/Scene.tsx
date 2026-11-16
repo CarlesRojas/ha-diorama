@@ -10,6 +10,7 @@ import {
 import { cn } from '#/lib/utils.ts'
 import { ROOM_CORNER_RADIUS_M, ROOM_GAP_M } from '#/theme.ts'
 import Adaptive from '#/scene/Adaptive.tsx'
+import Bvh from '#/scene/bvh.tsx'
 import CameraRig, { type CameraHandle } from '#/scene/CameraRig.tsx'
 import Cleanup from '#/scene/cleanup.tsx'
 import Devices from '#/scene/Devices.tsx'
@@ -154,6 +155,7 @@ export default function Scene({
         <Shadows />
         <Cleanup />
         <Adaptive />
+        <Bvh />
         {fpsTicks && <FpsTicker ticks={fpsTicks} />}
         <CameraRig
           rooms={rooms}
