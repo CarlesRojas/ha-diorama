@@ -198,6 +198,9 @@ class DioramaCard extends ReactHost<CardConfig> {
     const next = migrate(config)
     validate(next)
     this.backdrop = next.background
+    // The side panel hands hass on to Home Assistant's own cards, which
+    // read whatever they like, so it is handed every change.
+    this.watchHass = !next.side_panel
     this._config = this.keep(this._config, next)
     this.render()
   }
@@ -342,6 +345,8 @@ class DioramaCard extends ReactHost<CardConfig> {
 const SETTLE_MS = 250
 
 class DioramaEditor extends ReactHost<CardConfig> {
+  // The editor hands hass on to Home Assistant's own pickers.
+  protected watchHass = false
   private pending: CardConfig | null = null
   private timer: ReturnType<typeof setTimeout> | undefined
 

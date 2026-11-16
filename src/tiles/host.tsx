@@ -156,6 +156,7 @@ export abstract class TileHost<C extends TileConfig> extends ReactHost<C> {
     if (config.room_filter && !['hide', 'show', 'room', 'home'].includes(config.room_filter))
       throw new Error('room_filter must be hide, show, room or home')
     this._config = config
+    this.forgetReads()
     this.applyFilter()
     this.fitPicker()
     this.render()
@@ -184,16 +185,17 @@ export abstract class TileHost<C extends TileConfig> extends ReactHost<C> {
     return this._preview
   }
 
+  // Drawn again only when what the tile reads has changed, see host.tsx.
   set hass(hass: HomeAssistant) {
-    this._hass = hass
+    const changed = this.takeHass(hass)
     this.toggleAttribute('data-light', hass.themes?.darkMode === false)
     this.applyFilter()
     this.fitPicker()
-    this.render()
+    if (changed) this.render()
   }
 
   get hass() {
-    return this._hass as HomeAssistant
+    return super.hass
   }
 
   connectedCallback() {

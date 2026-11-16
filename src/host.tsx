@@ -119,12 +119,88 @@ export abstract class ReactHost<Config> extends HTMLElement {
 
   // Called by HA on every state change.
   set hass(hass: HomeAssistant) {
-    this._hass = hass
-    this.render()
+    if (this.takeHass(hass)) this.render()
   }
 
   get hass() {
-    return this._hass as HomeAssistant
+    return (this.latest ?? this._hass) as HomeAssistant
+  }
+
+  // Home Assistant hands every card a new hass whenever any entity in the
+  // home changes, a power reading every second, a sensor somewhere, and
+  // the card drew its whole tree again each time. A tree that only reads a
+  // few entities now draws again only when one of those changes, or when
+  // anything else hass carries does, like the theme or the language.
+  //
+  // The tree is handed a copy of hass whose states note which entities are
+  // read. They always give the latest state, so a press that reads one
+  // between two draws never acts on an old one. A tree that goes through
+  // all of them, to list them, draws on every change as before.
+  //
+  // Off for a tree that hands hass on to cards of Home Assistant's own,
+  // which read whatever they like.
+  protected watchHass = true
+  private latest: HomeAssistant | null = null
+  private read = new Set<string>()
+  private readAll = false
+
+  // Takes a new hass, and says whether the tree has to be drawn again.
+  protected takeHass(hass: HomeAssistant) {
+    const before = this.latest
+    this.latest = hass
+    if (!this.watchHass) {
+      this._hass = hass
+      return true
+    }
+    if (before && this._hass && !this.matters(before, hass)) return false
+    this._hass = this.watched(hass)
+    return true
+  }
+
+  // Forgets what the tree read, for a tree about to read other things.
+  protected forgetReads() {
+    this.read.clear()
+    this.readAll = false
+  }
+
+  private matters(before: HomeAssistant, now: HomeAssistant) {
+    if (before === now) return false
+    if (this.readAll) return true
+    const keys = new Set([...Object.keys(before), ...Object.keys(now)])
+    for (const key of keys) {
+      if (key === 'states') continue
+      if ((before as Record<string, unknown>)[key] !== (now as Record<string, unknown>)[key]) return true
+    }
+    if (before.states === now.states) return false
+    for (const id of this.read) if (before.states[id] !== now.states[id]) return true
+    return false
+  }
+
+  private watched(hass: HomeAssistant): HomeAssistant {
+    const latest = () => this.latest?.states ?? hass.states
+    const note = (key: string | symbol) => {
+      if (typeof key === 'string') this.read.add(key)
+    }
+    const states = new Proxy(hass.states, {
+      get: (_, key) => {
+        note(key)
+        return Reflect.get(latest(), key)
+      },
+      has: (_, key) => {
+        note(key)
+        return Reflect.has(latest(), key)
+      },
+      ownKeys: () => {
+        this.readAll = true
+        return Reflect.ownKeys(latest())
+      },
+      getOwnPropertyDescriptor: (_, key) => {
+        note(key)
+        const found = Reflect.getOwnPropertyDescriptor(latest(), key)
+        return found && { ...found, configurable: true }
+      },
+    })
+    return { ...hass, states }
   }
 
   protected abstract view(): ReactNode
