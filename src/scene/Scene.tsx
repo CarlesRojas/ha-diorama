@@ -17,6 +17,7 @@ import Devices from '#/scene/Devices.tsx'
 import Effects from '#/scene/Effects.tsx'
 import { calmEvents } from '#/scene/events.ts'
 import Merged from '#/scene/Merged.tsx'
+import Opening from '#/scene/Opening.tsx'
 import Passages from '#/scene/Passages.tsx'
 import PickFallback from '#/scene/pick.tsx'
 import Room from '#/scene/Room.tsx'
@@ -230,6 +231,8 @@ export default function Scene({
             maxDistance={CAMERA_MAX_DISTANCE_M}
           />
         )}
+        {/* Last, so the home is all there by the time it looks. */}
+        <Opening focus={focus ?? null} />
       </Canvas>
     </div>
   )

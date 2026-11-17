@@ -114,6 +114,88 @@ function arcShape(W: number, D: number, back: number, front: number) {
   return s
 }
 
+// Slab shapes, shared by every slab of the same size and shape. A home has
+// dozens alike, the doors of a run of cupboards, the legs and seats of a set
+// of chairs, and building each one again took a good part of the time the
+// card spent putting the home together. A shape is never changed once built,
+// and nothing disposes of these, so one can serve any number of slabs. The
+// oldest are let go of past a few hundred, for a slider dragged through
+// every size.
+const SLAB_SHAPES_KEPT = 400
+const slabShapes = new Map<string, ExtrudeGeometry>()
+
+function slabGeometry(
+  w: number,
+  h: number,
+  d: number,
+  radius: number,
+  bevel: number,
+  cut: string,
+  front: number | undefined,
+  taper: number | undefined,
+) {
+  const key = [w, h, d, radius, bevel, cut, front, taper].join('|')
+  const kept = slabShapes.get(key)
+  if (kept) return kept
+  const r = Math.min(radius, w / 2 - 0.001, d / 2 - 0.001)
+  const b = Math.min(bevel, h / 2 - 0.001, r / 2)
+  const shape =
+    front === undefined
+      ? roundedShape(
+          [
+            [-w / 2 + b, -d / 2 + b],
+            [w / 2 - b, -d / 2 + b],
+            [w / 2 - b, d / 2 - b],
+            [-w / 2 + b, d / 2 - b],
+          ],
+          Math.max(r - b, 0.001),
+        )
+      : arcShape(w / 2 - b, d / 2 - b, Math.max(r - b, 0.001), front - b)
+  // The bevel grows the solid into each hole too, so a hole is drawn that
+  // much wider to come out its own size.
+  for (const part of cut ? cut.split(';') : []) {
+    const [x, z, hw, hd, hr, turn] = part.split(',').map(Number)
+    const [cos, sin] = [Math.cos(turn), Math.sin(turn)]
+    const at = (px: number, pz: number): [number, number] => [x + px * cos + pz * sin, -(z - px * sin + pz * cos)]
+    const [ax, az] = [hw / 2 + b, hd / 2 + b]
+    shape.holes.push(roundedShape([at(-ax, -az), at(-ax, az), at(ax, az), at(ax, -az)], Math.max(hr + b, 0.001)))
+  }
+  const geo = new ExtrudeGeometry(shape, {
+    depth: Math.max(h - b * 2, 0.001),
+    bevelEnabled: b > 0.002,
+    bevelThickness: b,
+    bevelSize: b,
+    bevelSegments: 4,
+    curveSegments: 12,
+  })
+  // The shape is drawn on XY and extruded along +z. Rotating -90 about x
+  // turns that into +y spanning [-b, h - b], so lift it by b to sit on the
+  // floor.
+  geo.rotateX(-Math.PI / 2)
+  geo.translate(0, b, 0)
+  if (taper !== undefined && taper !== 1) {
+    const p = geo.attributes.position
+    const n = geo.attributes.normal
+    const lean = (1 - taper) / h
+    for (let i = 0; i < p.count; i++) {
+      const [x, y, z] = [p.getX(i), p.getY(i), p.getZ(i)]
+      const k = taper + (1 - taper) * Math.min(Math.max(y / h, 0), 1)
+      p.setXYZ(i, x * k, y, -d / 2 + (z + d / 2) * k)
+      // The sides lean in, so their normals tip down by how fast the side
+      // moves out going up.
+      const [nx, ny, nz] = [n.getX(i), n.getY(i), n.getZ(i)]
+      const flat = Math.hypot(nx, nz)
+      if (flat < 0.01) continue
+      const out = lean * (x * nx + (z + d / 2) * nz)
+      const v = new Vector3(nx, ny - out * flat, nz).normalize()
+      n.setXYZ(i, v.x, v.y, v.z)
+    }
+  }
+  slabShapes.set(key, geo)
+  if (slabShapes.size > SLAB_SHAPES_KEPT) slabShapes.delete(slabShapes.keys().next().value!)
+  return geo
+}
+
 // A box with rounded vertical corners and a softened top and bottom edge.
 // Width runs along x, depth along z, height along y.
 export function Slab({
@@ -147,63 +229,10 @@ export function Slab({
   const [w, h, d] = size
   // The holes are made again every render, so their numbers are the key.
   const cut = holes?.map(o => [o.x, o.z, o.w, o.d, o.r, o.turn ?? 0].join(',')).join(';') ?? ''
-  const geometry = useMemo(() => {
-    const r = Math.min(radius, w / 2 - 0.001, d / 2 - 0.001)
-    const b = Math.min(bevel, h / 2 - 0.001, r / 2)
-    const shape =
-      front === undefined
-        ? roundedShape(
-            [
-              [-w / 2 + b, -d / 2 + b],
-              [w / 2 - b, -d / 2 + b],
-              [w / 2 - b, d / 2 - b],
-              [-w / 2 + b, d / 2 - b],
-            ],
-            Math.max(r - b, 0.001),
-          )
-        : arcShape(w / 2 - b, d / 2 - b, Math.max(r - b, 0.001), front - b)
-    // The bevel grows the solid into each hole too, so a hole is drawn that
-    // much wider to come out its own size.
-    for (const part of cut ? cut.split(';') : []) {
-      const [x, z, hw, hd, hr, turn] = part.split(',').map(Number)
-      const [cos, sin] = [Math.cos(turn), Math.sin(turn)]
-      const at = (px: number, pz: number): [number, number] => [x + px * cos + pz * sin, -(z - px * sin + pz * cos)]
-      const [ax, az] = [hw / 2 + b, hd / 2 + b]
-      shape.holes.push(roundedShape([at(-ax, -az), at(-ax, az), at(ax, az), at(ax, -az)], Math.max(hr + b, 0.001)))
-    }
-    const geo = new ExtrudeGeometry(shape, {
-      depth: Math.max(h - b * 2, 0.001),
-      bevelEnabled: b > 0.002,
-      bevelThickness: b,
-      bevelSize: b,
-      bevelSegments: 4,
-      curveSegments: 12,
-    })
-    // The shape is drawn on XY and extruded along +z. Rotating -90 about x
-    // turns that into +y spanning [-b, h - b], so lift it by b to sit on the
-    // floor.
-    geo.rotateX(-Math.PI / 2)
-    geo.translate(0, b, 0)
-    if (taper !== undefined && taper !== 1) {
-      const p = geo.attributes.position
-      const n = geo.attributes.normal
-      const lean = (1 - taper) / h
-      for (let i = 0; i < p.count; i++) {
-        const [x, y, z] = [p.getX(i), p.getY(i), p.getZ(i)]
-        const k = taper + (1 - taper) * Math.min(Math.max(y / h, 0), 1)
-        p.setXYZ(i, x * k, y, -d / 2 + (z + d / 2) * k)
-        // The sides lean in, so their normals tip down by how fast the side
-        // moves out going up.
-        const [nx, ny, nz] = [n.getX(i), n.getY(i), n.getZ(i)]
-        const flat = Math.hypot(nx, nz)
-        if (flat < 0.01) continue
-        const out = lean * (x * nx + (z + d / 2) * nz)
-        const v = new Vector3(nx, ny - out * flat, nz).normalize()
-        n.setXYZ(i, v.x, v.y, v.z)
-      }
-    }
-    return geo
-  }, [w, h, d, radius, bevel, cut, front, taper])
+  const geometry = useMemo(
+    () => slabGeometry(w, h, d, radius, bevel, cut, front, taper),
+    [w, h, d, radius, bevel, cut, front, taper],
+  )
   return (
     <mesh geometry={geometry} position={position} rotation={rotation} castShadow receiveShadow>
       {children}
