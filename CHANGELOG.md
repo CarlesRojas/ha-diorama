@@ -9,6 +9,8 @@ moves that section under the new version and uses it as the release notes.
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-17
+
 ### Added
 
 - A robot vacuum that says which room it is cleaning, as a Tapo does, has the robot in the diorama drive there through the doors and sweep that room, then move on to the next one with it. A robot that names its rooms differently from Home Assistant finds them through the areas' aliases.
@@ -747,7 +749,8 @@ moves that section under the new version and uses it as the release notes.
 
 ### Changed
 
-[Unreleased]: https://github.com/CarlesRojas/ha-diorama/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/CarlesRojas/ha-diorama/compare/v1.11.0...HEAD
+[1.11.0]: https://github.com/CarlesRojas/ha-diorama/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/CarlesRojas/ha-diorama/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/CarlesRojas/ha-diorama/compare/v1.8.29...v1.9.0
 [1.8.29]: https://github.com/CarlesRojas/ha-diorama/compare/v1.8.28...v1.8.29
