@@ -1,6 +1,8 @@
+import BakeWorker from '#/materials/bake.worker.ts?worker&inline'
+import { bake, FIELDS, paint, SIZE, type Baked, type SurfaceKind } from '#/materials/fields.ts'
 import {
-  CanvasTexture,
   DataTexture,
+  LinearFilter,
   LinearMipmapLinearFilter,
   RepeatWrapping,
   RGBAFormat,
@@ -8,9 +10,19 @@ import {
   type Texture,
 } from 'three'
 
-// Procedural surfaces, generated once on a canvas and cached. Each material
-// gives a light grayscale color map, so the item's color tints it, and a
-// normal map built from a height field for relief under the lights.
+// Procedural surfaces, generated once and cached. Each material gives a light
+// grayscale color map, so the item's color tints it, and a normal map built
+// from a height field for relief under the lights.
+//
+// Working a pattern out takes a tenth of a second per kind on a computer and
+// several times that on a tablet, and a home shows several kinds, so the card
+// sat frozen for a good part of its opening while the floors were painted.
+// The patterns are built by workers instead, beside the page, while the
+// graphics card builds the shaders. Each map is there from the start, plain
+// white and flat, and is filled in place when its pattern comes back. The
+// card waits for them before it draws its first frame, see Opening.tsx.
+
+export type { SurfaceKind }
 
 export type Surface = {
   map: Texture
@@ -22,192 +34,139 @@ export type Surface = {
   // run long down the room while staying narrow across it.
   stretch: number
   normalScale: number
+  // Settles once both maps hold the pattern.
+  ready: Promise<void>
+  // Whether they do already.
+  loaded: boolean
 }
 
-export type SurfaceKind =
-  'wood' | 'wood_floor' | 'tiles' | 'terracotta' | 'carpet' | 'concrete' | 'fabric' | 'ceramic' | 'metal' | 'matte'
-
-const SIZE = 512
 // Cached per kind and per intensity, since the color map is baked with it.
 const cache = new Map<string, Surface>()
 
-// Deterministic value noise, so every load looks the same.
-function hash2(x: number, y: number, seed: number) {
-  const s = Math.sin(x * 127.1 + y * 311.7 + seed * 74.7) * 43758.5453
-  return s - Math.floor(s)
+// A kind's pattern, which every intensity of it shares.
+type Pattern = { baked: Baked | null; normalMap: DataTexture; ready: Promise<void> }
+const patterns = new Map<SurfaceKind, Pattern>()
+
+// A few workers, one pattern each at a time. A worker is let go of as soon
+// as there is nothing left for it, since the patterns are asked for in one
+// burst as the home is built and seldom after.
+const WORKERS = Math.max(1, Math.min(3, (navigator.hardwareConcurrency || 2) - 1))
+type Job = { kind: SurfaceKind; done: (baked: Baked) => void }
+const queue: Job[] = []
+const free: Worker[] = []
+let made = 0
+
+// Where a worker's code comes from. The bundle carries it as text, and
+// started from a blob, the way Vite does it, the browser held the page up
+// for a sixth of a second while it registered the blob, during the busiest
+// moment of the card's opening. From a data address it starts at once. Not
+// every browser takes a worker from one, so a refusal falls back to the
+// blob, and a refusal of that to building the patterns on the page.
+type Source = 'data' | 'blob' | 'page'
+let source: Source = typeof Worker === 'undefined' ? 'page' : 'data'
+
+// Each worker's source, so several refused at once fall back only one step.
+const startedFrom = new WeakMap<Worker, Source>()
+
+function fallBack(from: Source) {
+  if (source === from) source = from === 'data' ? 'blob' : 'page'
 }
 
-// The lattice wraps, so a field built from it meets itself at the edge of the
-// tile. Without this every surface carried a seam where the tile repeated.
-function lattice(x: number, y: number, seed: number, px: number, py: number) {
-  return hash2(((x % px) + px) % px, ((y % py) + py) % py, seed)
+function onPage(job: Job) {
+  setTimeout(() => job.done(bake(job.kind)))
 }
 
-function smoothNoise(x: number, y: number, seed: number, px: number, py: number) {
-  const x0 = Math.floor(x)
-  const y0 = Math.floor(y)
-  const fx = x - x0
-  const fy = y - y0
-  const sx = fx * fx * (3 - 2 * fx)
-  const sy = fy * fy * (3 - 2 * fy)
-  const a = lattice(x0, y0, seed, px, py)
-  const b = lattice(x0 + 1, y0, seed, px, py)
-  const c = lattice(x0, y0 + 1, seed, px, py)
-  const d = lattice(x0 + 1, y0 + 1, seed, px, py)
-  return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy
-}
-
-// `u` and `v` run 0 to 1 across the tile. `fx` and `fy` are how many features
-// fit in it, and have to be whole numbers for the tile to wrap.
-function fbm(u: number, v: number, fx: number, fy: number, seed: number, octaves = 4) {
-  let sum = 0
-  let amp = 0.5
-  let f = 1
-  for (let i = 0; i < octaves; i++) {
-    sum += smoothNoise(u * fx * f, v * fy * f, seed + i, fx * f, fy * f) * amp
-    amp *= 0.5
-    f *= 2
+// Vite's inline worker tries a blob first and takes a data address when it
+// gets no blob address, so it is given none for a moment.
+function fromData() {
+  const objectUrl = URL.createObjectURL
+  URL.createObjectURL = () => ''
+  try {
+    return new BakeWorker()
+  } finally {
+    URL.createObjectURL = objectUrl
   }
-  return sum
 }
 
-// Height and brightness per pixel, both 0 to 1, u and v in 0 to 1 tiling.
-type Field = (u: number, v: number) => { height: number; light: number }
+function spawn(): Worker | null {
+  while (source !== 'page') {
+    try {
+      const worker = source === 'data' ? fromData() : new BakeWorker()
+      startedFrom.set(worker, source)
+      made++
+      return worker
+    } catch {
+      fallBack(source)
+    }
+  }
+  return null
+}
 
-// `repeat` is how many times the tile fits in a meter, so a surface keeps the
-// same physical scale on a small stool and on a whole floor.
-
-const FIELDS: Record<
-  SurfaceKind,
-  { field: Field; roughness: number; repeat: number; stretch?: number; normalScale: number }
-> = {
-  wood: {
-    // Furniture oak: a continuous grain with no plank seams, in long streaks.
-    field: (u, v) => {
-      const grain = fbm(u, v, 2, 9, 41, 3)
-      const fleck = fbm(u, v, 6, 26, 43, 2)
-      return { height: 0.5 + grain * 0.35 + fleck * 0.15, light: 0.9 + grain * 0.07 + fleck * 0.03 }
-    },
-    roughness: 0.65,
-    repeat: 4,
-    normalScale: 0.18,
-  },
-  wood_floor: {
-    // Floorboards. The tile is eight boards across and four boards long, and
-    // it is stretched five times along u, so a board is 16 cm wide and 1.6 m
-    // long. Every row is offset by its own amount, so the short joints only
-    // line up again after eight boards, more than a meter across the room.
-    field: (u, v) => {
-      const rows = 8
-      const row = Math.floor(v * rows)
-      const along = u + hash2(row, 1, 7)
-      const board = Math.floor(along * 4)
-      const joint = Math.abs(v * rows - row - 0.5) > 0.475 || Math.abs(along * 4 - board - 0.5) > 0.4955
-      // Grain runs the length of the board, so it is slow along u and fine
-      // across v. Anything busy along u would read as another joint.
-      const grain = fbm(u, v, 2, 56, 1)
-      const tone = 0.9 + grain * 0.05 + (hash2(row, board, 3) - 0.5) * 0.07
-      return { height: joint ? 0.45 : 0.62 + grain * 0.1, light: joint ? tone * 0.92 : tone }
-    },
-    roughness: 0.7,
-    repeat: 0.78,
-    stretch: 5,
-    normalScale: 0.12,
-  },
-  tiles: {
-    // Square tiles with grout lines. Three per tile at 0.83 tiles per meter,
-    // so a tile is 40 cm across.
-    field: (u, v) => {
-      const gu = Math.abs(((u * 3) % 1) - 0.5) > 0.487
-      const gv = Math.abs(((v * 3) % 1) - 0.5) > 0.487
-      const grout = gu || gv
-      const speck = fbm(u, v, 9, 9, 5)
-      return { height: grout ? 0.45 : 0.7 + speck * 0.1, light: grout ? 0.86 : 0.95 + speck * 0.05 }
-    },
-    roughness: 0.35,
-    repeat: 0.83,
-    normalScale: 0.22,
-  },
-  terracotta: {
-    // Larger warm tiles, slightly uneven. Two per tile at 1.25 tiles per
-    // meter, so a tile is 40 cm across.
-    field: (u, v) => {
-      const gu = Math.abs(((u * 2) % 1) - 0.5) > 0.485
-      const gv = Math.abs(((v * 2) % 1) - 0.5) > 0.485
-      const grout = gu || gv
-      const wobble = fbm(u, v, 5, 5, 9)
-      return { height: grout ? 0.3 : 0.55 + wobble * 0.35, light: grout ? 0.82 : 0.92 + wobble * 0.07 }
-    },
-    roughness: 0.85,
-    repeat: 1.25,
-    normalScale: 0.3,
-  },
-  carpet: {
-    // Soft pile: clumps of about 8 cm with a fine fuzz over them.
-    field: (u, v) => {
-      const n = fbm(u, v, 10, 10, 13, 3) * 0.7 + fbm(u, v, 34, 34, 15, 2) * 0.3
-      return { height: n, light: 0.9 + n * 0.09 }
-    },
-    roughness: 1,
-    repeat: 1.2,
-    normalScale: 0.3,
-  },
-  concrete: {
-    // Poured concrete: broad cloudy patches, a faint trowel swirl over them
-    // and fine aggregate speckle.
-    field: (u, v) => {
-      const broad = fbm(u, v, 3, 3, 17)
-      const swirl = fbm(u, v, 7, 7, 19, 3)
-      const speck = fbm(u, v, 40, 40, 21, 2)
-      return {
-        height: broad * 0.5 + swirl * 0.3 + speck * 0.2,
-        light: 0.9 + broad * 0.06 + swirl * 0.03 + speck * 0.04,
+function pump() {
+  while (queue.length > 0) {
+    if (source === 'page') {
+      onPage(queue.shift()!)
+      continue
+    }
+    const worker = free.pop() ?? (made < WORKERS ? spawn() : null)
+    // Every worker busy, or none to be had, which leaves the page.
+    if (!worker) {
+      if (made >= WORKERS) return
+      continue
+    }
+    const job = queue.shift()!
+    worker.onmessage = (event: MessageEvent<Baked>) => {
+      job.done(event.data)
+      if (queue.length > 0) free.push(worker)
+      else {
+        worker.terminate()
+        made--
       }
-    },
-    roughness: 0.9,
-    repeat: 0.55,
-    normalScale: 0.12,
-  },
-  fabric: {
-    // A quiet weave: just enough cross hatch to catch the light.
-    field: (u, v) => {
-      const weave = (Math.sin(u * Math.PI * 14) + Math.sin(v * Math.PI * 14)) * 0.25 + 0.5
-      const n = fbm(u, v, 9, 9, 23, 2)
-      return { height: weave * 0.5 + n * 0.5, light: 0.94 + weave * 0.03 + n * 0.03 }
-    },
-    roughness: 1,
-    repeat: 7,
-    normalScale: 0.1,
-  },
-  ceramic: {
-    // Smooth with faint glaze ripples.
-    field: (u, v) => {
-      const n = fbm(u, v, 5, 5, 29, 3)
-      return { height: n, light: 0.96 + n * 0.04 }
-    },
-    roughness: 0.25,
-    repeat: 3,
-    normalScale: 0.06,
-  },
-  metal: {
-    // Fine brushed lines in one direction.
-    field: (u, v) => {
-      const brush = fbm(u, v, 2, 40, 31, 2)
-      return { height: brush, light: 0.9 + brush * 0.1 }
-    },
-    roughness: 0.4,
-    repeat: 4,
-    normalScale: 0.08,
-  },
-  matte: {
-    field: (u, v) => {
-      const n = fbm(u, v, 8, 8, 37, 2)
-      return { height: n, light: 0.97 + n * 0.03 }
-    },
-    roughness: 0.95,
-    repeat: 4,
-    normalScale: 0.05,
-  },
+      pump()
+    }
+    // A worker the browser would not start says so here, after the fact.
+    // Its job goes back in line for the next way of starting one.
+    worker.onerror = event => {
+      event.preventDefault()
+      worker.terminate()
+      made--
+      fallBack(startedFrom.get(worker) ?? source)
+      queue.unshift(job)
+      pump()
+    }
+    worker.postMessage(job.kind)
+  }
+}
+
+function pattern(kind: SurfaceKind): Pattern {
+  const cached = patterns.get(kind)
+  if (cached) return cached
+  // Flat until the pattern comes: every normal straight up.
+  const data = new Uint8Array(SIZE * SIZE * 4)
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = 128
+    data[i + 1] = 128
+    data[i + 2] = 255
+    data[i + 3] = 255
+  }
+  const normalMap = new DataTexture(data, SIZE, SIZE, RGBAFormat)
+  normalMap.wrapS = normalMap.wrapT = RepeatWrapping
+  // A data texture comes with no mipmaps, which makes a floor seen at a
+  // grazing angle crawl and its lines break up.
+  normalMap.generateMipmaps = true
+  normalMap.minFilter = LinearMipmapLinearFilter
+  normalMap.needsUpdate = true
+  const out: Pattern = { baked: null, normalMap, ready: Promise.resolve() }
+  out.ready = new Promise<Baked>(done => {
+    queue.push({ kind, done })
+    pump()
+  }).then(baked => {
+    data.set(baked.normal)
+    normalMap.needsUpdate = true
+    out.baked = baked
+  })
+  patterns.set(kind, out)
+  return out
 }
 
 // How a surface catches the light, without building its pattern. Decorations
@@ -226,67 +185,40 @@ export function surface(kind: SurfaceKind, intensity = 1): Surface {
   const cached = cache.get(key)
   if (cached) return cached
   const spec = FIELDS[kind]
-  const heights = new Float32Array(SIZE * SIZE)
-  const canvas = document.createElement('canvas')
-  canvas.width = SIZE
-  canvas.height = SIZE
-  const ctx = canvas.getContext('2d')!
-  const image = ctx.createImageData(SIZE, SIZE)
-  for (let y = 0; y < SIZE; y++) {
-    for (let x = 0; x < SIZE; x++) {
-      const { height, light } = spec.field(x / SIZE, y / SIZE)
-      heights[y * SIZE + x] = height
-      const i = (y * SIZE + x) * 4
-      // Toward plain white as the intensity drops, past the design as it rises.
-      const shown = 1 - (1 - light) * k
-      const l = Math.round(Math.min(Math.max(shown, 0), 1) * 255)
-      image.data[i] = l
-      image.data[i + 1] = l
-      image.data[i + 2] = l
-      image.data[i + 3] = 255
-    }
-  }
-  ctx.putImageData(image, 0, 0)
-  const map = new CanvasTexture(canvas)
+  const p = pattern(kind)
+  // Plain white until the pattern comes, which is how the surface looks at
+  // no intensity at all.
+  const data = new Uint8Array(SIZE * SIZE * 4).fill(255)
+  const map = new DataTexture(data, SIZE, SIZE, RGBAFormat)
   map.colorSpace = SRGBColorSpace
   map.wrapS = map.wrapT = RepeatWrapping
-
-  // Normal map from the height field with a Sobel filter, tiling at the edges.
-  const data = new Uint8Array(SIZE * SIZE * 4)
-  const h = (x: number, y: number) => heights[((y + SIZE) % SIZE) * SIZE + ((x + SIZE) % SIZE)]
-  const strength = 6
-  for (let y = 0; y < SIZE; y++) {
-    for (let x = 0; x < SIZE; x++) {
-      const dx =
-        (h(x + 1, y - 1) + 2 * h(x + 1, y) + h(x + 1, y + 1) - h(x - 1, y - 1) - 2 * h(x - 1, y) - h(x - 1, y + 1)) *
-        strength
-      const dy =
-        (h(x - 1, y + 1) + 2 * h(x, y + 1) + h(x + 1, y + 1) - h(x - 1, y - 1) - 2 * h(x, y - 1) - h(x + 1, y - 1)) *
-        strength
-      const len = Math.hypot(dx, dy, 1)
-      const i = (y * SIZE + x) * 4
-      data[i] = Math.round((-dx / len) * 127 + 128)
-      data[i + 1] = Math.round((-dy / len) * 127 + 128)
-      data[i + 2] = Math.round((1 / len) * 127 + 128)
-      data[i + 3] = 255
-    }
-  }
-  const normalMap = new DataTexture(data, SIZE, SIZE, RGBAFormat)
-  normalMap.wrapS = normalMap.wrapT = RepeatWrapping
-  // A data texture comes with no mipmaps, which makes a floor seen at a
-  // grazing angle crawl and its lines break up.
-  normalMap.generateMipmaps = true
-  normalMap.minFilter = LinearMipmapLinearFilter
-  normalMap.needsUpdate = true
+  map.magFilter = LinearFilter
+  map.minFilter = LinearMipmapLinearFilter
+  map.generateMipmaps = true
+  map.needsUpdate = true
 
   const out: Surface = {
     map,
-    normalMap,
+    normalMap: p.normalMap,
     roughness: spec.roughness,
     repeat: spec.repeat,
     stretch: spec.stretch ?? 1,
     normalScale: spec.normalScale * k,
+    ready: Promise.resolve(),
+    loaded: false,
   }
+  const fill = (baked: Baked) => {
+    paint(baked.light, k, data)
+    map.needsUpdate = true
+    out.loaded = true
+  }
+  if (p.baked) fill(p.baked)
+  else out.ready = p.ready.then(() => fill(p.baked!))
   cache.set(key, out)
   return out
+}
+
+// Settles once every surface asked for so far holds its pattern.
+export async function surfacesReady() {
+  await Promise.all([...cache.values()].map(s => s.ready))
 }

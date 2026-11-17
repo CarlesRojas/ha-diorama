@@ -5,6 +5,7 @@ import { EDITOR_SELECTED_COLOR } from '#/theme.ts'
 import { FOCUS_FADE_S } from '#/constants.ts'
 import { redrawShadows, showOnly } from '#/scene/focus.ts'
 import { setComposed } from '#/scene/warm.ts'
+import { isOpening } from '#/scene/Opening.tsx'
 import { EdgeFadeEffect } from '#/scene/edgeFade.ts'
 import { useFrame, useThree } from '@react-three/fiber'
 import { N8AOPostPass } from 'n8ao'
@@ -29,6 +30,7 @@ import {
   Mesh,
   type Material,
   type Object3D,
+  type WebGLRenderer,
 } from 'three'
 
 // The frame is drawn into a buffer and finished from there, in a few steps:
@@ -79,6 +81,54 @@ function parts(object: Object3D) {
     if (materials.every(material => material.depthWrite)) found.push(part)
   })
   return found
+}
+
+// The composer of each renderer, for its shaders to be built ahead.
+const composers = new WeakMap<WebGLRenderer, EffectComposer>()
+
+// The materials the steps that finish the frame draw with, found by looking
+// through the passes and what they hold, since each library keeps its own
+// out of sight. The last pass draws to the screen and the rest into
+// buffers, which three builds a shader for differently.
+export function effectMaterials(gl: WebGLRenderer): { buffered: Material[]; screen: Material[] } {
+  const composer = composers.get(gl)
+  const buffered = new Set<Material>()
+  const screen = new Set<Material>()
+  if (!composer) return { buffered: [], screen: [] }
+  const seen = new Set<object>()
+  const look = (value: unknown, into: Set<Material>, depth: number) => {
+    if (!value || typeof value !== 'object' || seen.has(value)) return
+    seen.add(value)
+    const v = value as {
+      isMaterial?: boolean
+      isMesh?: boolean
+      isObject3D?: boolean
+      isTexture?: boolean
+      isWebGLRenderer?: boolean
+      material?: unknown
+    }
+    if (v.isMaterial) {
+      into.add(value as Material)
+      return
+    }
+    // A pass draws with a triangle across the picture, and only its material
+    // counts. Any other thing in the scene, the home itself or the camera,
+    // is the home's own, and the rest holds no shaders.
+    if (v.isMesh) return look(v.material, into, depth)
+    if (depth === 0 || v.isObject3D || v.isTexture || v.isWebGLRenderer || ArrayBuffer.isView(value)) return
+    for (const key of Object.keys(value)) {
+      if (key === 'renderer' || key === 'uniforms') continue
+      look((value as Record<string, unknown>)[key], into, depth - 1)
+    }
+  }
+  for (const pass of composer.passes) {
+    if (pass.renderToScreen && pass.fullscreenMaterial) {
+      screen.add(pass.fullscreenMaterial)
+      seen.add(pass.fullscreenMaterial)
+    }
+    look(pass, buffered, 5)
+  }
+  return { buffered: [...buffered], screen: [...screen] }
 }
 
 type Props = {
@@ -168,12 +218,14 @@ export default function Effects({ selected, focus = null, edgeFade = false }: Pr
     }
     composer.addPass(last)
     pipeline.current = { composer, outline, paint }
+    composers.set(gl, composer)
     found.current = null
     // The shaders the scene needs are now the ones for drawing into a
     // buffer, and the ones built ahead of a light change must match.
     setComposed(gl, true)
     return () => {
       setComposed(gl, false)
+      if (composers.get(gl) === composer) composers.delete(gl)
       pipeline.current = null
       // The composer disposes of its passes, and they of their effects.
       composer.dispose()
@@ -214,6 +266,8 @@ export default function Effects({ selected, focus = null, edgeFade = false }: Pr
   useFrame((state, delta) => {
     const run = pipeline.current
     if (!run) return
+    // Nothing is drawn until the shaders of the first frame are built.
+    if (isOpening(state.gl)) return
     if (run.outline) {
       const held = found.current
       const selection = run.outline.selection

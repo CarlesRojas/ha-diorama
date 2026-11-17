@@ -13,6 +13,10 @@ moves that section under the new version and uses it as the release notes.
 
 - A robot vacuum that says which room it is cleaning, as a Tapo does, has the robot in the diorama drive there through the doors and sweep that room, then move on to the next one with it. A robot that names its rooms differently from Home Assistant finds them through the areas' aliases.
 
+### Changed
+
+- The 3D view shows up in less than half the time it took, and the dashboard no longer freezes while it opens.
+
 ## [1.10.0] - 2026-11-16
 
 ### Added

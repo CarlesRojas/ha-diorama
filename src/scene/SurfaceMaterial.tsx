@@ -1,4 +1,5 @@
 import { surface, type SurfaceKind } from '#/materials/textures.ts'
+import { useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import { DoubleSide, Matrix3, Vector2 } from 'three'
 
@@ -80,6 +81,23 @@ export default function SurfaceMaterial({
     },
     [maps],
   )
+  // A pattern still on its way when these were made is sent up again once
+  // it is in. A clone keeps its own count of changes, so telling the
+  // surface's own maps is not enough.
+  const invalidate = useThree(state => state.invalidate)
+  useEffect(() => {
+    if (s.loaded) return
+    let live = true
+    void s.ready.then(() => {
+      if (!live) return
+      maps.map.needsUpdate = true
+      maps.normalMap.needsUpdate = true
+      invalidate()
+    })
+    return () => {
+      live = false
+    }
+  }, [s, maps, invalidate])
   const normalScale = useMemo(() => new Vector2(s.normalScale, s.normalScale), [s.normalScale])
   return (
     <meshStandardMaterial

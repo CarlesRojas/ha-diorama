@@ -201,6 +201,23 @@ function watcher(scene: Scene) {
   }
 }
 
+// Has everything solid cast a shadow and everything take them. Done in a
+// sweep a few times a second, for things put in the room since, and once
+// before the first frame, since whether a thing takes shadows is part of
+// its shader.
+export function castAndReceive(scene: Object3D) {
+  scene.traverse(object => {
+    if (!(object instanceof Mesh)) return
+    // A lamp shade is the one thing that is meant to pass light on: its
+    // frame casts, the parchment or opal in it does not. A fish or a clock
+    // hand is too small to throw anything, and moves all day, so as a
+    // caster it would have the sun's map drawn again on every frame.
+    const solid = !object.userData.transmits && !object.userData.noShadow && !clear(object.material)
+    if (object.castShadow !== solid) object.castShadow = solid
+    if (!object.receiveShadow) object.receiveShadow = true
+  })
+}
+
 export default function Shadows() {
   const get = useThree(state => state.get)
   // Armed each frame and spent on the first draw of it. The outline draws
@@ -287,16 +304,7 @@ export default function Shadows() {
     }
     since.current = 0
     look.current()
-    three.scene.traverse(object => {
-      if (!(object instanceof Mesh)) return
-      // A lamp shade is the one thing that is meant to pass light on: its
-      // frame casts, the parchment or opal in it does not. A fish or a
-      // clock hand is too small to throw anything, and moves all day, so
-      // as a caster it would have the sun's map drawn again on every frame.
-      const solid = !object.userData.transmits && !object.userData.noShadow && !clear(object.material)
-      if (object.castShadow !== solid) object.castShadow = solid
-      if (!object.receiveShadow) object.receiveShadow = true
-    })
+    castAndReceive(three.scene)
   })
   return null
 }
