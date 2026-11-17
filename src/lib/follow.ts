@@ -29,8 +29,24 @@ const simple = (text: string) =>
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_|_$/g, '')
 
-// The room a sensor's state names: by its area's id or name, or the room's
-// own name. Bermuda also gives the area's id as an attribute, which wins.
+// The room a name stands for: its area's id, name or one of the area's
+// aliases, or the room's own name. Nothing for a name that says nowhere.
+export function roomOfName(hass: HomeAssistant, rooms: RoomConfig[], text: string): RoomConfig | undefined {
+  if (NOWHERE.has(text.toLowerCase())) return undefined
+  const name = simple(text)
+  if (!name) return undefined
+  return rooms.find(room => {
+    const area = room.area_id ? hass.areas[room.area_id] : undefined
+    return (
+      (room.area_id && simple(room.area_id) === name) ||
+      (area && (simple(area.name) === name || area.aliases?.some(alias => simple(alias) === name))) ||
+      (room.name && simple(room.name) === name)
+    )
+  })
+}
+
+// The room a sensor's state names. Bermuda also gives the area's id as an
+// attribute, which wins.
 export function roomNamed(hass: HomeAssistant, rooms: RoomConfig[], entityId: string): RoomConfig | undefined {
   const entity = hass.states[entityId]
   if (!entity) return undefined
@@ -39,16 +55,7 @@ export function roomNamed(hass: HomeAssistant, rooms: RoomConfig[], entityId: st
     const room = rooms.find(r => r.area_id === areaId)
     if (room) return room
   }
-  if (NOWHERE.has(entity.state.toLowerCase())) return undefined
-  const name = simple(entity.state)
-  return rooms.find(room => {
-    const area = room.area_id ? hass.areas[room.area_id] : undefined
-    return (
-      (room.area_id && simple(room.area_id) === name) ||
-      (area && simple(area.name) === name) ||
-      (room.name && simple(room.name) === name)
-    )
-  })
+  return roomOfName(hass, rooms, entity.state)
 }
 
 // The person linked to the user logged in on this screen.

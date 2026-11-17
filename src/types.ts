@@ -11,6 +11,9 @@ export type Area = {
   name: string
   floor_id: string | null
   icon: string | null
+  // Other names the area goes by, as set in Home Assistant, like the name a
+  // robot vacuum's app gives the room.
+  aliases?: string[]
 }
 
 export type EntityRegistryEntry = {

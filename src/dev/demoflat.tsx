@@ -22,6 +22,9 @@
 // `follow=me` or `follow=anyone` has the card follow a made up person, or
 // the room where someone was last detected, with buttons along the bottom
 // to move them from room to room.
+// `vacuum=1` has the robot vacuum say which room it cleans, with buttons
+// along the bottom to send it to a room or back to its dock. The living
+// room is named by an alias of its area, Sala, as a robot's app would.
 // A click on a piece flips its entity, the way Home Assistant would. A cover
 // sent to a position runs there at a tenth of its travel every half second.
 import { screenId } from '#/lib/screen.ts'
@@ -131,11 +134,16 @@ if (follow) {
   config.screens = { [screenId()]: { name: 'Demo', follow: { who: follow } } }
 }
 
+const vacuum = params.has('vacuum')
+const areas = structuredClone(DEMO_AREAS)
+const living = config.rooms?.find(room => room.id === 'living')?.area_id
+if (vacuum && living) areas[living].aliases = ['Sala']
+
 type CardElement = HTMLElement & { setConfig: (c: CardConfig) => void; hass: HomeAssistant }
 const element = document.createElement(params.has('editor') ? 'diorama-card-editor' : 'diorama-card') as CardElement
 const hass = (): HomeAssistant => ({
   states: structuredClone(states),
-  areas: DEMO_AREAS,
+  areas,
   entities,
   user: { id: 'demo-user', name: 'Alex' },
   callService: (_domain, service, data) => {
@@ -203,6 +211,33 @@ if (follow) {
     button.dataset.room = room ?? 'out'
     button.style.cssText = 'padding:6px 10px;border-radius:8px;border:none;background:#333;color:#eee;cursor:pointer'
     button.onclick = () => moveTo(room)
+    bar.appendChild(button)
+  }
+  document.body.appendChild(bar)
+}
+
+// Sends the robot vacuum to clean a room, saying the room as its app names
+// it, or back to its dock.
+if (vacuum) {
+  const id = config.devices?.find(device => device.entity_id.startsWith('vacuum.'))?.entity_id
+  const dock = config.decorations?.find(item => item.kind === 'vacuum_robot')
+  const floor = config.rooms?.find(room => room.id === dock?.room)?.floor_id
+  const bar = document.createElement('div')
+  bar.style.cssText = 'position:fixed;bottom:12px;right:12px;display:flex;gap:6px;z-index:10;font:13px system-ui'
+  const clean = (room: string | null) => {
+    if (!id) return
+    const entity = states[id]
+    const area = config.rooms?.find(r => r.id === room)?.area_id
+    entity.state = room ? 'cleaning' : 'docked'
+    entity.attributes.current_room = area ? (areas[area].aliases?.[0] ?? areas[area].name) : undefined
+    element.hass = hass()
+  }
+  for (const room of [...(config.rooms ?? []).filter(r => r.floor_id === floor).map(r => r.id), null]) {
+    const button = document.createElement('button')
+    button.textContent = room ?? 'dock'
+    button.dataset.vacuum = room ?? 'dock'
+    button.style.cssText = 'padding:6px 10px;border-radius:8px;border:none;background:#2d3b4f;color:#eee;cursor:pointer'
+    button.onclick = () => clean(room)
     bar.appendChild(button)
   }
   document.body.appendChild(bar)

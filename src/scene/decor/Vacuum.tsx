@@ -1,6 +1,7 @@
 import { colorValue, materialValue, paramValue, type DecorationKind } from '#/decoration/catalog.ts'
 import { Led, Material, SEG, Slab, Spinner } from '#/scene/decor/parts.tsx'
-import { alongPath, legLengths, roamKey, roamRound } from '#/scene/decor/roam.ts'
+import { elevationOf } from '#/geometry/elevation.ts'
+import { alongPath, legLengths, roamKey, roamPlan } from '#/scene/decor/roam.ts'
 import type { ItemState } from '#/scene/decor/state.ts'
 import type { DecorationConfig, Point, RoomConfig } from '#/types.ts'
 import { useFrame, useThree } from '@react-three/fiber'
@@ -13,6 +14,9 @@ type Props = {
   item: DecorationConfig
   state: ItemState | null
   room?: RoomConfig
+  // Every room of the plan. The robot drives to the ones on its dock's floor
+  // when the vacuum says it is cleaning there.
+  rooms?: RoomConfig[]
   all: DecorationConfig[]
   // How hard it is running, so the brushes wind down rather than stopping
   // dead when it is switched off.
@@ -25,10 +29,45 @@ const SPEED = 0.24
 // How quickly it swings around to face the way it is going.
 const TURN_RATE = 3.5
 
+type Trip = { path: Point[]; legs: number[]; total: number }
+
+const tripOf = (path: Point[]): Trip => {
+  const legs = legLengths(path)
+  return { path, legs, total: legs.reduce((a, b) => a + b, 0) }
+}
+
+// The point of a path nearest to `from`, as a distance along it, so turning
+// the robot back on partway home picks the round up where it is rather than
+// teleporting it to the start.
+function nearestAlong(trip: Trip, from: Point) {
+  let best = 0
+  let bestGap = Infinity
+  let along = 0
+  for (let i = 0; i < trip.legs.length; i++) {
+    const a = trip.path[i]
+    const b = trip.path[i + 1]
+    const len = trip.legs[i]
+    const t =
+      len > 0
+        ? Math.min(Math.max(((from[0] - a[0]) * (b[0] - a[0]) + (from[1] - a[1]) * (b[1] - a[1])) / (len * len), 0), 1)
+        : 0
+    const gap = Math.hypot(a[0] + (b[0] - a[0]) * t - from[0], a[1] + (b[1] - a[1]) * t - from[1])
+    if (gap < bestGap) {
+      bestGap = gap
+      best = along + t * len
+    }
+    along += len
+  }
+  return best
+}
+
 // A robot vacuum and the dock it charges on. The dock stays where the piece
 // was placed, since that is the thing with a plug in the wall, and the robot
 // itself leaves it to sweep the room and comes back when it is turned off.
-export default function Vacuum({ kind, item, state, room, all, lit }: Props) {
+// A vacuum that says which room it is cleaning has the robot drive there,
+// through the doors between, and sweep that room instead, and drive on to
+// the next one when the vacuum moves on.
+export default function Vacuum({ kind, item, state, room, rooms, all, lit }: Props) {
   const p = (id: string) => paramValue(kind, item.params, id, item.variant)
   const c = (slot: string) => colorValue(kind, item.colors, slot, item.variant)
   const m = (slot: string) => materialValue(kind, slot, item.variant)
@@ -37,64 +76,55 @@ export default function Vacuum({ kind, item, state, room, all, lit }: Props) {
   const r = p('size') / 2
   const h = 0.085
 
-  // The round it drives, in plan meters. Working it out means sampling the
-  // whole floor, so it is kept until the shape of the room, the furniture
-  // standing in it or the robot's own place actually changes. Every other
-  // render, of which there are many, leaves it alone.
-  const key = roamKey(room, all, item, r)
-  const round = useMemo(
-    () => (room ? roamRound(room, all, item, r) : null),
+  // The rooms the robot can drive to: the ones on its dock's floor. Working
+  // out its ways means sampling each room's floor, so they are kept until
+  // the shape of those rooms, the furniture standing in them or the robot's
+  // own place actually changes. Every other render, of which there are many,
+  // leaves them alone.
+  const level = room?.floor_id ?? ''
+  const reach = useMemo(
+    () => (room ? (rooms ?? [room]).filter(other => (other.floor_id ?? '') === level) : []),
+    [rooms, room, level],
+  )
+  const key = roamKey(reach, all, item, r)
+  const plan = useMemo(
+    () => (room ? roamPlan(room, reach, all, item, r) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [key],
   )
-  const sweep = useMemo(() => {
-    const path = round?.sweep ?? [item.position]
-    return { path, legs: legLengths(path) }
-  }, [round, item.position])
 
   const rig = useRef<Group>(null)
-  // What it is driving now: the sweep while it runs, the way back to the
-  // dock once it stops, and nothing at all while it sits there.
-  const trip = useRef<{ path: Point[]; legs: number[]; total: number } | null>(null)
-  const going = useRef<'sweep' | 'home' | 'parked'>('parked')
+  // What it is driving now: a room's sweep while it runs, the way to the
+  // next room when the vacuum moves on to one, the way back to the dock once
+  // it stops, and nothing at all while it sits there.
+  const trip = useRef<Trip | null>(null)
+  const going = useRef<'sweep' | 'travel' | 'home' | 'parked'>('parked')
+  // The room it sweeps, or is on its way to.
+  const area = useRef(item.room)
+  // The room it was last inside, which a doorway between two is in neither.
+  const last = useRef(item.room)
+  // The room it was last sent to, so a room it cannot reach is tried once.
+  const aim = useRef<string | null>(null)
   const travelled = useRef(0)
   const forward = useRef(true)
   const spot = useRef<Point>(item.position)
   const facing = useRef(0)
   const rotation = MathUtils.degToRad(item.rotation ?? 0)
+  // Where it is meant to be: the room the vacuum says while it cleans, when
+  // the robot can get there, and its dock's own room otherwise.
+  const target = state?.place && plan?.has(state.place) ? state.place : item.room
 
-  // The point of the sweep nearest to where it is now, so turning it back on
-  // partway home picks the round up where it is rather than teleporting it
-  // to the start.
-  const joinSweep = (from: Point) => {
-    let best = 0
-    let bestGap = Infinity
-    let along = 0
-    for (let i = 0; i < sweep.legs.length; i++) {
-      const a = sweep.path[i]
-      const b = sweep.path[i + 1]
-      const len = sweep.legs[i]
-      const t =
-        len > 0
-          ? Math.min(
-              Math.max(((from[0] - a[0]) * (b[0] - a[0]) + (from[1] - a[1]) * (b[1] - a[1])) / (len * len), 0),
-              1,
-            )
-          : 0
-      const gap = Math.hypot(a[0] + (b[0] - a[0]) * t - from[0], a[1] + (b[1] - a[1]) * t - from[1])
-      if (gap < bestGap) {
-        bestGap = gap
-        best = along + t * len
-      }
-      along += len
-    }
-    return best
-  }
-
-  const take = (path: Point[]) => {
-    const legs = legLengths(path)
-    trip.current = { path, legs, total: legs.reduce((a, b) => a + b, 0) }
-    travelled.current = 0
+  // Sweeps a room from where the robot is. Its dock's room is the round it
+  // always drives, joined where it is nearest; another room's round starts
+  // right where it stands.
+  const sweepRoom = (id: string, from: Point) => {
+    const docked = id === item.room
+    const round = plan?.round(id, docked ? undefined : from)
+    trip.current = tripOf(round?.sweep ?? [item.position])
+    travelled.current = docked ? nearestAlong(trip.current, from) : 0
+    forward.current = true
+    going.current = 'sweep'
+    area.current = id
   }
 
   const invalidate = useThree(state => state.invalidate)
@@ -107,25 +137,34 @@ export default function Vacuum({ kind, item, state, room, all, lit }: Props) {
     // Off, it still has to drive home and turn to face the room.
     if (!on && going.current !== 'parked') invalidate()
 
-    if (on && going.current !== 'sweep') {
-      // Back to sweeping, from wherever it had got to.
-      going.current = 'sweep'
-      trip.current = { ...sweep, total: sweep.legs.reduce((a, b) => a + b, 0) }
-      travelled.current = joinSweep(spot.current)
-      forward.current = true
-    } else if (!on && going.current === 'sweep') {
+    if (on && (going.current === 'parked' || going.current === 'home' || aim.current !== target)) {
+      // Out to sweep, or on to the room the vacuum moved to, from wherever
+      // it had got to.
+      aim.current = target
+      const from = going.current === 'sweep' ? area.current : last.current
+      const way = from === target ? null : plan?.crossing(from, spot.current, target)
+      if (way) {
+        trip.current = tripOf(way)
+        travelled.current = 0
+        going.current = 'travel'
+        area.current = target
+      } else sweepRoom(from === target || !plan ? target : from, spot.current)
+    } else if (!on && (going.current === 'sweep' || going.current === 'travel')) {
       // Switched off: straight back to the dock by the shortest way across
-      // the free floor, not back along everything it just swept.
+      // the free floor, through the rooms between, not back along
+      // everything it just swept.
       going.current = 'home'
-      take(round ? round.home(spot.current) : [spot.current, item.position])
+      aim.current = null
+      trip.current = tripOf(plan ? plan.home(last.current, spot.current) : [spot.current, item.position])
+      travelled.current = 0
     }
 
-    const run = trip.current
+    let run = trip.current
     if (run && run.total > 0) {
       if (going.current === 'sweep') {
         // Out to the far end of the round and back again, for as long as it
-        // is running. The way back stops short of the dock, at the end of
-        // the leg that leaves it, so a running robot never climbs onto the
+        // is running. The way back stops short of where it set off, at the
+        // end of the first leg, so a running robot never climbs onto the
         // dock and spins round on it.
         travelled.current += (forward.current ? 1 : -1) * SPEED * dt
         if (travelled.current >= run.total) {
@@ -137,13 +176,26 @@ export default function Vacuum({ kind, item, state, room, all, lit }: Props) {
         }
       } else {
         travelled.current = Math.min(travelled.current + SPEED * dt, run.total)
-        if (travelled.current >= run.total) going.current = 'parked'
+        if (travelled.current >= run.total) {
+          // In the next room: it sweeps it from where it came in.
+          if (going.current === 'travel') {
+            sweepRoom(area.current, run.path[run.path.length - 1])
+            run = trip.current
+          } else going.current = 'parked'
+        }
       }
     } else if (going.current === 'home') going.current = 'parked'
 
     const here =
       run && run.total > 0 ? alongPath(run.path, run.legs, travelled.current) : { at: item.position, heading: 0 }
     spot.current = here.at
+    const inside = plan?.roomAt(here.at)
+    if (inside) last.current = inside
+    // Which room it is drawn with: a focused room shows the robot while it
+    // is in there, wherever its dock is.
+    g.userData.room = going.current === 'parked' ? item.room : last.current
+    // A room raised or sunk from the dock's carries the robot with its floor.
+    g.position.y = elevationOf(reach.find(other => other.id === last.current)) - elevationOf(room)
     // The whole piece is already turned to the item's own rotation, so the
     // robot's place inside it is the plan offset turned back the other way.
     const dx = here.at[0] - item.position[0]
@@ -194,7 +246,7 @@ export default function Vacuum({ kind, item, state, room, all, lit }: Props) {
           than out on a round. */}
       <Led on={!on} position={[0, 0.105, -r * 1.06 + 0.02]} radius={0.007} />
 
-      <group ref={rig}>
+      <group ref={rig} name={`decoration:${item.id}:robot`}>
         {/* A low puck: a bumper wrapping the front half, a lidar turret set
             back on the top plate, and a side brush that spins while it runs. */}
         <mesh position={[0, h / 2, 0]} castShadow>

@@ -36,6 +36,7 @@ type Props = {
   // The room the piece stands in and everything else in the plan, for the
   // few models that have to know where they can drive.
   room?: RoomConfig
+  rooms?: RoomConfig[]
   all: DecorationConfig[]
 }
 
@@ -121,7 +122,7 @@ const rgbOf = (hex: string): [number, number, number] => [
   parseInt(hex.slice(5, 7), 16) / 255,
 ]
 
-export default function DeviceModel({ kind, item, state, room, all }: Props) {
+export default function DeviceModel({ kind, item, state, room, rooms, all }: Props) {
   const p = (id: string) => paramValue(kind, item.params, id, item.variant)
   const c = (slot: string) => colorValue(kind, item.colors, slot, item.variant)
   const m = (slot: string) => materialValue(kind, slot, item.variant)
@@ -1668,7 +1669,7 @@ export default function DeviceModel({ kind, item, state, room, all }: Props) {
       )
     }
     case 'vacuum_robot':
-      return <Vacuum kind={kind} item={item} state={state} room={room} all={all} lit={lit} />
+      return <Vacuum kind={kind} item={item} state={state} room={room} rooms={rooms} all={all} lit={lit} />
     default:
       return null
   }
