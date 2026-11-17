@@ -26,6 +26,9 @@ export type ItemState = {
   presses?: number
   // What a player plays, for a screen to show it.
   showing?: Showing | null
+  // The room a robot vacuum says it is in, by id, for the robot to drive
+  // there. Missing when it says none.
+  place?: string
   // A finger is dragging the piece, which follows it with no easing.
   dragged?: boolean
 }
@@ -43,6 +46,7 @@ export function sameState(a: ItemState | null, b: ItemState | null) {
     a.moisture !== b.moisture ||
     a.text !== b.text ||
     a.presses !== b.presses ||
+    a.place !== b.place ||
     a.dragged !== b.dragged
   )
     return false

@@ -36,6 +36,8 @@ type Props = {
   // The room it stands in, for the models that have to know the floor they
   // are on. Absent in the sidebar's preview, where there is no room.
   room?: RoomConfig
+  // Every room of the plan, for a robot vacuum to drive from one to another.
+  rooms?: RoomConfig[]
   // The rooms it belongs to, for a piece in a wall between two. Absent for
   // a piece that has only its own.
   between?: Between | null
@@ -69,6 +71,7 @@ type FamilyModel = (props: {
   item: DecorationConfig
   state: ItemState | null
   room?: RoomConfig
+  rooms?: RoomConfig[]
   all: DecorationConfig[]
 }) => ReactNode
 
@@ -140,6 +143,7 @@ function DecorationModel({
   item,
   all,
   room,
+  rooms,
   between,
   floor,
   state,
@@ -208,7 +212,7 @@ function DecorationModel({
     >
       <group ref={frame} rotation={[0, outside ? Math.PI : 0, 0]}>
         <Faded fade={fade}>
-          <Model kind={kind} item={item} state={state} room={room} all={all} />
+          <Model kind={kind} item={item} state={state} room={room} rooms={rooms} all={all} />
         </Faded>
         {travel && state && (
           // The ghost is where the finger takes it, with no easing.
@@ -242,6 +246,7 @@ function unchanged(a: Props, b: Props) {
     return false
   if (a.onDrag !== b.onDrag || a.passDrag !== b.passDrag) return false
   if (!sameState(a.state, b.state)) return false
+  if (a.rooms !== b.rooms && READS_PLAN.has(a.item.kind)) return false
   if (a.all === b.all) return true
   return !READS_PLAN.has(a.item.kind) && standHeight(a.item, a.all) === standHeight(b.item, b.all)
 }

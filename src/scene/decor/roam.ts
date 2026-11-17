@@ -1,5 +1,6 @@
 import { decorationKind, footprint } from '#/decoration/catalog.ts'
 import { pointStrictlyInside } from '#/geometry/overlap.ts'
+import { neighboursOf, type Passage } from '#/geometry/passages.ts'
 import type { DecorationConfig, Point, RoomConfig } from '#/types.ts'
 
 // The path a robot vacuum drives while it runs. Real ones sweep the floor in
@@ -150,16 +151,18 @@ function straighten(floor: Floor, trail: Cell[], from: Cell): Cell[] {
   return out
 }
 
-// Everything a round depends on, as one string: the room's outline, the
-// robot's own place and size, and where each piece of furniture in the room
-// stands. Anything else about the plan can change without the round having
-// to be worked out again.
-export function roamKey(room: RoomConfig | undefined, all: DecorationConfig[], self: DecorationConfig, radius: number) {
-  if (!room) return 'none'
+// Everything the robot's ways depend on, as one string: the outline of each
+// room it can drive to, the robot's own place and size, and where each piece
+// in those rooms stands, the doors between them among them. Anything else
+// about the plan can change without the ways having to be worked out again.
+export function roamKey(rooms: RoomConfig[], all: DecorationConfig[], self: DecorationConfig, radius: number) {
+  if (rooms.length === 0) return 'none'
+  const ids = new Set(rooms.map(room => room.id))
   const pieces = all
-    .filter(d => d.id !== self.id && d.room === room.id)
-    .map(d => `${d.kind}:${d.position}:${d.rotation ?? 0}:${d.on ?? ''}:${JSON.stringify(d.params ?? {})}`)
-  return `${room.points}|${self.position}|${self.rotation ?? 0}|${radius}|${pieces.join('|')}`
+    .filter(d => d.id !== self.id && ids.has(d.room))
+    .map(d => `${d.room}:${d.kind}:${d.position}:${d.rotation ?? 0}:${d.on ?? ''}:${JSON.stringify(d.params ?? {})}`)
+  const outlines = rooms.map(room => `${room.id}:${room.points}`)
+  return `${outlines.join('|')}|${self.position}|${self.rotation ?? 0}|${radius}|${pieces.join('|')}`
 }
 
 // A robot's round: the sweep it drives while it is running, and the way
@@ -173,10 +176,31 @@ export type Round = {
 // How far out from the dock the robot looks for the floor, in its own radii.
 const DOCK_REACH = 4
 
-export function roamRound(room: RoomConfig, all: DecorationConfig[], self: DecorationConfig, radius: number): Round {
-  const others = all.filter(d => d.id !== self.id && d.room === room.id)
+// A room's free floor, with the cell under any point and the way between
+// two cells across it.
+function floorOf(room: RoomConfig, others: DecorationConfig[], radius: number) {
   const step = Math.max(radius * SAMPLE, 0.02)
   const floor = freeFloor(room, others, radius, step)
+  const origin = floor.at(0, 0)
+  const cellOf = (q: Point): Cell => [Math.round((q[0] - origin[0]) / step), Math.round((q[1] - origin[1]) / step)]
+  // Every move is routed across the free floor, so no leg goes through the
+  // furniture between its ends.
+  const leg = (from: Cell, to: Cell) =>
+    sightLine(floor, from, to) ? [to] : straighten(floor, route(floor, from, to), from)
+  return { floor, step, cellOf, leg }
+}
+
+// The robot's round in a room. In the room of its dock it starts there and
+// ends there. In another room it starts at `start`, where it came in.
+export function roamRound(
+  room: RoomConfig,
+  all: DecorationConfig[],
+  self: DecorationConfig,
+  radius: number,
+  start?: Point,
+): Round {
+  const others = all.filter(d => d.id !== self.id && d.room === room.id)
+  const { floor, step, cellOf, leg } = floorOf(room, others, radius)
   const { nx, ny, at, ok } = floor
 
   // The passes: the clear stretches of every row the robot steps to, taken
@@ -210,8 +234,6 @@ export function roamRound(room: RoomConfig, all: DecorationConfig[], self: Decor
   // robot drives off the ramp the way it is facing and backs onto it the
   // same way, with no turn on the dock. Only a dock with nothing free ahead
   // of it settles for the free cell nearest to it.
-  const origin = at(0, 0)
-  const cellOf = (q: Point): Cell => [Math.round((q[0] - origin[0]) / step), Math.round((q[1] - origin[1]) / step)]
   const ahead = (): Cell | null => {
     const a = ((self.rotation ?? 0) * Math.PI) / 180
     // The piece's front, on the plan: the way a wall piece faces into the room.
@@ -223,11 +245,10 @@ export function roamRound(room: RoomConfig, all: DecorationConfig[], self: Decor
     }
     return null
   }
-  // Every move is routed across the free floor, so no leg goes through the
-  // furniture between its ends.
-  const leg = (from: Cell, to: Cell) =>
-    sightLine(floor, from, to) ? [to] : straighten(floor, route(floor, from, to), from)
-  const dock = ahead() ?? nearestFree(floor, cellOf(self.position))
+  // A round in another room starts where the robot came in instead.
+  const dock = start
+    ? nearestFree(floor, cellOf(start))
+    : (ahead() ?? nearestFree(floor, cellOf(self.position)))
   // The shortest way back to the dock from anywhere on the floor, which is
   // what it drives when it is switched off partway through a round.
   const home = (from: Point): Point[] => {
@@ -235,7 +256,7 @@ export function roamRound(room: RoomConfig, all: DecorationConfig[], self: Decor
     if (!at0 || !dock) return [from, self.position]
     return [from, ...leg(at0, dock).map(cell => at(cell[0], cell[1])), self.position]
   }
-  const path: Point[] = [self.position]
+  const path: Point[] = [start ?? self.position]
   if (!dock || stops.length === 0) return { sweep: path, home }
   let cursor = dock
   for (const stop of [dock, ...stops]) {
@@ -245,6 +266,144 @@ export function roamRound(room: RoomConfig, all: DecorationConfig[], self: Decor
     cursor = trail[trail.length - 1]
   }
   return { sweep: path, home }
+}
+
+// How far either side of a door or an open stretch the robot lines up to go
+// through it, in its own radii: clear of the wall on both sides.
+const THROUGH = 1.6
+// A way into the next room through an open stretch costs this much more than
+// one through a door, so the robot takes the door where there is one. Rooms
+// with nothing between them may still have a wall the plan does not draw.
+const OPEN_COST = 1.5
+
+// Every way the robot can go on one floor of the home: the round it sweeps
+// in each room, the way from one room to another through the doors and open
+// stretches between them, and the way back to its dock from anywhere.
+export type Plan = {
+  // The rooms it can reach, by id.
+  has: (room: string) => boolean
+  // The round of a room. Its dock's room with no `start` is the one it
+  // leaves the dock for, and any other starts where it came in.
+  round: (room: string, start?: Point) => Round
+  // The way from `at` in one room to another room, through every room on
+  // the way, ending just inside it. Null when no way leads there.
+  crossing: (from: string, at: Point, to: string) => Point[] | null
+  // The way from `at`, in any room, back onto the dock.
+  home: (from: string, at: Point) => Point[]
+  // The room a point is in, by id.
+  roomAt: (at: Point) => string | undefined
+}
+
+export function roamPlan(
+  dockRoom: RoomConfig,
+  rooms: RoomConfig[],
+  all: DecorationConfig[],
+  self: DecorationConfig,
+  radius: number,
+): Plan {
+  const byId = new Map(rooms.map(room => [room.id, room]))
+  byId.set(dockRoom.id, dockRoom)
+  const dock = roamRound(dockRoom, all, self, radius)
+  const rounds = new Map<string, Round>()
+  const round = (id: string, start?: Point): Round => {
+    if (id === dockRoom.id && !start) return dock
+    const room = byId.get(id)
+    if (!room) return dock
+    const key = `${id}|${start ?? ''}`
+    let found = rounds.get(key)
+    if (!found) {
+      found = roamRound(room, all, self, radius, start)
+      // Joining a round partway, from wherever the robot is, makes a new
+      // start each time, so only the last few are kept.
+      if (rounds.size > 16) rounds.clear()
+      rounds.set(key, found)
+    }
+    return found
+  }
+
+  // The way across a room's free floor between two points, worked out once
+  // for each room it is needed in.
+  const floors = new Map<string, ReturnType<typeof floorOf>>()
+  const walk = (id: string, from: Point, to: Point): Point[] => {
+    const room = byId.get(id)
+    if (!room) return [to]
+    let f = floors.get(id)
+    if (!f) {
+      f = floorOf(
+        room,
+        all.filter(d => d.id !== self.id && d.room === id),
+        radius,
+      )
+      floors.set(id, f)
+    }
+    const a = nearestFree(f.floor, f.cellOf(from))
+    const b = nearestFree(f.floor, f.cellOf(to))
+    if (!a || !b) return [to]
+    return [f.floor.at(a[0], a[1]), ...f.leg(a, b).map(cell => f.floor.at(cell[0], cell[1])), to]
+  }
+
+  // The rooms beside each room, through a door or open to it. A stretch with
+  // no door that either room hides its sign to is taken for a wall the plan
+  // does not draw, so the robot goes round by the doors instead.
+  const hidden = (a: RoomConfig, b: string) =>
+    !!a.hide_arrows?.includes(b) || !!byId.get(b)?.hide_arrows?.includes(a.id)
+  const ways = new Map(
+    rooms.map(room => [
+      room.id,
+      neighboursOf(room, rooms, all).filter(next => next.door || !hidden(room, next.id)),
+    ]),
+  )
+
+  // The cheapest run of rooms from one to another, as the ways through.
+  const hops = (from: string, to: string): Passage[] | null => {
+    const cost = new Map<string, number>([[from, 0]])
+    const came = new Map<string, Passage>()
+    const open = new Set([from])
+    while (open.size > 0) {
+      let at = ''
+      for (const id of open) if (!at || cost.get(id)! < cost.get(at)!) at = id
+      open.delete(at)
+      if (at === to) break
+      for (const next of ways.get(at) ?? []) {
+        if (!next.passage) continue
+        const total = cost.get(at)! + (next.door ? 1 : OPEN_COST)
+        if (total >= (cost.get(next.id) ?? Infinity)) continue
+        cost.set(next.id, total)
+        came.set(next.id, next.passage)
+        open.add(next.id)
+      }
+    }
+    if (!came.has(to)) return null
+    const out: Passage[] = []
+    for (let id = to; id !== from; id = came.get(id)!.from) out.push(came.get(id)!)
+    return out.reverse()
+  }
+
+  const crossing = (from: string, at: Point, to: string): Point[] | null => {
+    const through = hops(from, to)
+    if (!through) return null
+    const path: Point[] = [at]
+    let here = at
+    for (const p of through) {
+      const reach = radius * THROUGH
+      const before: Point = [p.at[0] - p.out[0] * reach, p.at[1] - p.out[1] * reach]
+      const after: Point = [p.at[0] + p.out[0] * reach, p.at[1] + p.out[1] * reach]
+      path.push(...walk(p.from, here, before), after)
+      here = after
+    }
+    return path
+  }
+
+  const home = (from: string, at: Point): Point[] => {
+    if (from === dockRoom.id) return dock.home(at)
+    const way = crossing(from, at, dockRoom.id)
+    if (!way) return [at, self.position]
+    return [...way, ...dock.home(way[way.length - 1]).slice(1)]
+  }
+
+  const roomAt = (at: Point) => rooms.find(room => pointStrictlyInside(at, room.points))?.id
+
+  return { has: id => byId.has(id), round, crossing, home, roomAt }
 }
 
 // The free cell closest to one that is not, for joining the floor from the

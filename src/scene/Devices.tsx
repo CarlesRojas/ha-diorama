@@ -3,6 +3,7 @@ import { decorationKind, invertible, paramValue, type DecorationKind } from '#/d
 import { canTry, initialTry, tryItemState, type TryState, type TryStates } from '#/editor/tryState.ts'
 import { elevationOf } from '#/geometry/elevation.ts'
 import { DOOR_KINDS } from '#/geometry/passages.ts'
+import { vacuumRoom } from '#/lib/vacuum.ts'
 import DecorationModel from '#/scene/decor/DecorationModel.tsx'
 import type { Fade } from '#/scene/decor/fade.tsx'
 import type { DragAction } from '#/scene/decor/drag.tsx'
@@ -353,7 +354,13 @@ export default function Devices({
       device && hass ? itemState(hass, device, guesses, presses, item.light_color, item.light_brightness) : null
     // Only a smart plug shows what its device draws, so nothing else is drawn
     // again every time the reading moves.
-    const metered = read && item.kind === 'smart_plug' ? { ...read, power: powerOf(hass!, device!.entity_id) } : read
+    // A robot vacuum says which room it is cleaning, when it knows.
+    const metered =
+      read && item.kind === 'smart_plug'
+        ? { ...read, power: powerOf(hass!, device!.entity_id) }
+        : read && item.kind === 'vacuum_robot'
+          ? { ...read, place: vacuumRoom(hass!, device!.entity_id, rooms) }
+          : read
     const flip = !!item.invert && !!kind && invertible(kind)
     const real = flip ? inverted(metered) : metered
     // What the device says that trying has no control for, like a reading,
@@ -498,6 +505,7 @@ export default function Devices({
             item={item}
             all={decorations}
             room={roomById.get(item.room)}
+            rooms={rooms}
             between={between}
             floor={floor}
             fade={fade}
