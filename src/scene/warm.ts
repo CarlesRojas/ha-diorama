@@ -177,12 +177,23 @@ async function flush(w: Warmer, get: () => RootState) {
   w.busy = true
   const batch = w.pending
   w.pending = new Map()
-  if (batch.size > 1)
+  // A change that goes alone waits for a round of its own. When every
+  // change waiting goes alone, the first one has this round. Sending them
+  // all back left the round empty, and it was tried again and again without
+  // end, freezing the page.
+  if (batch.size > 1) {
+    const together = [...batch.values()].some(change => !change.alone)
+    let first = !together
     for (const [key, change] of batch) {
       if (!change.alone) continue
+      if (first) {
+        first = false
+        continue
+      }
       batch.delete(key)
       w.pending.set(key, change)
     }
+  }
   w.flying = batch
   const changes = [...batch.values()]
   const { gl, scene, camera } = get()
