@@ -9,6 +9,8 @@ moves that section under the new version and uses it as the release notes.
 
 ## [Unreleased]
 
+## [1.11.1] - 2026-11-17
+
 ### Changed
 
 - The 3D view fades in once it is ready, instead of appearing all at once.
@@ -757,7 +759,8 @@ moves that section under the new version and uses it as the release notes.
 
 ### Changed
 
-[Unreleased]: https://github.com/CarlesRojas/ha-diorama/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/CarlesRojas/ha-diorama/compare/v1.11.1...HEAD
+[1.11.1]: https://github.com/CarlesRojas/ha-diorama/compare/v1.11.0...v1.11.1
 [1.11.0]: https://github.com/CarlesRojas/ha-diorama/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/CarlesRojas/ha-diorama/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/CarlesRojas/ha-diorama/compare/v1.8.29...v1.9.0
