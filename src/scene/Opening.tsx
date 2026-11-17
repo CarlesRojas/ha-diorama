@@ -1,10 +1,10 @@
 import { surfacesReady } from '#/materials/textures.ts'
-import { effectMaterials } from '#/scene/Effects.tsx'
+import { effectMaterials, framesDrawn } from '#/scene/Effects.tsx'
 import { showOnly } from '#/scene/focus.ts'
 import { castAndReceive } from '#/scene/shadows.tsx'
 import { warm } from '#/scene/warm.ts'
-import { useThree, type RootState } from '@react-three/fiber'
-import { useEffect, useState } from 'react'
+import { useFrame, useThree, type RootState } from '@react-three/fiber'
+import { useEffect, useRef, useState } from 'react'
 import {
   BufferGeometry,
   Float32BufferAttribute,
@@ -79,15 +79,30 @@ function effectsBuilt(gl: WebGLRenderer, camera: Camera) {
   })
 }
 
+// How many frames are drawn, out of sight, before the picture fades in. On
+// some screens the very first frame came out black where it should be clear,
+// and with nothing moving no other frame came to put it right until the home
+// was turned. The second frame always comes out right.
+const FRAMES_BEFORE_SHOWING = 2
+
 // `focus` is the room the card opens on. The first frames fade from the
-// whole home to it, so the shaders of both are needed.
-export default function Opening({ focus }: { focus: string | null }) {
+// whole home to it, so the shaders of both are needed. `onShown` is told
+// once the picture is ready to be seen.
+export default function Opening({ focus, onShown }: { focus: string | null; onShown: () => void }) {
   const gl = useThree(state => state.gl)
   const get = useThree(state => state.get)
   // Held from the first render on, before any frame can be asked for.
   useState(() => opening.add(gl))
   // Only the room the card opened on counts.
   const [opensOn] = useState(focus)
+  // Asks for frames until enough are drawn, then shows the picture.
+  const shown = useRef(false)
+  useFrame(state => {
+    if (isOpening(state.gl) || shown.current) return
+    if (framesDrawn(state.gl) < FRAMES_BEFORE_SHOWING) return state.invalidate()
+    shown.current = true
+    onShown()
+  })
   useEffect(() => {
     // Again here, for the effect run a second time in development.
     opening.add(gl)

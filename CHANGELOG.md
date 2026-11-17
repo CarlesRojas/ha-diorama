@@ -9,6 +9,14 @@ moves that section under the new version and uses it as the release notes.
 
 ## [Unreleased]
 
+### Changed
+
+- The 3D view fades in once it is ready, instead of appearing all at once.
+
+### Fixed
+
+- The 3D view no longer opens on a black background, which stayed until the home was turned.
+
 ## [1.11.0] - 2026-11-17
 
 ### Added
