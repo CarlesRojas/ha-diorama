@@ -6,6 +6,7 @@ import {
   CAMERA_MIN_DISTANCE_M,
   CAMERA_MIN_POLAR_DEG,
   CAMERA_NEAR_M,
+  OPENING_FADE_MS,
 } from '#/constants.ts'
 import { cn } from '#/lib/utils.ts'
 import { ROOM_CORNER_RADIUS_M, ROOM_GAP_M } from '#/theme.ts'
@@ -122,6 +123,8 @@ export default function Scene({
   // bubbling, and the camera rig can keep a click from them. They are only
   // mounted once it is there to listen on.
   const [frame, setFrame] = useState<HTMLDivElement | null>(null)
+  const [shown, setShown] = useState(false)
+  const show = useCallback(() => setShown(true), [])
 
   return (
     // In the card a finger that sets off up or down scrolls the dashboard
@@ -129,7 +132,16 @@ export default function Scene({
     // it too for as long as it stays down. The controls ask for every touch
     // on the element they listen on, so this has to outrank them. The editor
     // has nothing to scroll and keeps every touch.
-    <div ref={setFrame} className={cn('relative h-full w-full', !wheelZoom && 'touch-pan-y!')}>
+    // Out of sight until the home is ready, then faded in, see Opening.tsx.
+    <div
+      ref={setFrame}
+      className={cn(
+        'relative h-full w-full transition-opacity ease-out',
+        !wheelZoom && 'touch-pan-y!',
+        shown ? 'opacity-100' : 'opacity-0',
+      )}
+      style={{ transitionDuration: `${OPENING_FADE_MS}ms` }}
+    >
       <Canvas
         // Percentage closer filtering across the map, so the edge comes out
         // soft and clean, and softness comes from how fine the map is. This
@@ -232,7 +244,7 @@ export default function Scene({
           />
         )}
         {/* Last, so the home is all there by the time it looks. */}
-        <Opening focus={focus ?? null} />
+        <Opening focus={focus ?? null} onShown={show} />
       </Canvas>
     </div>
   )

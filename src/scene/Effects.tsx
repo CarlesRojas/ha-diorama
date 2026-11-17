@@ -86,6 +86,11 @@ function parts(object: Object3D) {
 // The composer of each renderer, for its shaders to be built ahead.
 const composers = new WeakMap<WebGLRenderer, EffectComposer>()
 
+// How many frames each renderer has drawn to the screen. A tick can pass
+// with nothing drawn, see pace.ts, so counting ticks is not the same.
+const drawn = new WeakMap<WebGLRenderer, number>()
+export const framesDrawn = (gl: WebGLRenderer) => drawn.get(gl) ?? 0
+
 // The materials the steps that finish the frame draw with, found by looking
 // through the passes and what they hold, since each library keeps its own
 // out of sight. The last pass draws to the screen and the rest into
@@ -330,6 +335,7 @@ export default function Effects({ selected, focus = null, edgeFade = false }: Pr
       draw(to.current, t * t * (3 - 2 * t), true)
       run.paint.blendAlpha = 1
     }
+    drawn.set(state.gl, framesDrawn(state.gl) + 1)
     // A priority above zero takes the drawing over from the default loop,
     // which is what lets the composer be the one to draw the frame.
   }, 1)
